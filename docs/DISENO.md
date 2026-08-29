@@ -14,14 +14,11 @@ Este documento cubre los 3 entregables solicitados:
 
 ## 1. Esquema de base de datos relacional
 
-Motor de desarrollo: **SQLite** (cero configuración). El `datasource` de Prisma se
-cambia a `postgresql` con una línea para producción — el resto del código no cambia.
-
-> SQLite no soporta `enum` nativo en Prisma, por eso los campos de tipo cerrado
-> (`role`, `estado`, `tipoFlujo`, `trigger`, `estado` de correo) se modelan como
-> `String` y se validan con Zod en el backend y con listas TypeScript compartidas en
-> el frontend (`backend/src/types/enums.ts` y `frontend/src/types.ts` son la misma
-> fuente de verdad). Al migrar a PostgreSQL pueden volver a ser `enum` nativos.
+Motor: **PostgreSQL** (desplegado sobre Supabase). Los campos de tipo cerrado
+(`role`, `estado`, `tipoFlujo`, `trigger`, `estado` de correo) son `enum` nativos de
+Postgres/Prisma — con integridad garantizada por la propia base de datos, más la
+validación de forma (Zod) en el backend y las mismas listas de valores replicadas en
+TypeScript en el frontend (`frontend/src/types.ts`).
 
 ```mermaid
 erDiagram
@@ -134,16 +131,21 @@ esquema ni el flujo de estados.
 ## 2. Arquitectura del backend para correo asíncrono
 
 **Objetivo del requisito**: el usuario escribe un correo y presiona "Enviar/Guardar";
-el backend hace todo lo demás, sin que dependa de tener Outlook abierto. La regla de
-oro es que **la request HTTP que guarda datos nunca espera a que SMTP responda.**
+el backend hace todo lo demás, sin que dependa de tener Outlook abierto.
 
-### Patrón: Outbox + Worker
+La app corre como **funciones serverless en Vercel** (ver "Despliegue en Vercel" más
+abajo), lo que descarta un worker en background con `setInterval` viviendo para
+siempre: una función serverless termina apenas responde. Por eso el patrón es
+**outbox + envío inline + reintento por Cron**, en vez de outbox + worker perpetuo:
+
+### Patrón: Outbox + envío inline + Cron de reintento
 
 ```
-┌─────────────┐   1. POST /records/:id/decision        ┌──────────────┐
-│  Frontend   │ ───────────────────────────────────────▶│  Controller  │
-│ (React)     │   { tipoFlujo, destinatarios[] }         │  (Express)   │
-└─────────────┘                                          └──────┬───────┘
+┌─────────────┐  1. POST /records/:id/decision         ┌──────────────┐
+│  Frontend   │ ────────────────────────────────────────▶  Controller  │
+│ (React)     │  { tipoFlujo, destinatarios[] }          │  (Express,   │
+└─────────────┘                                          │  en /api)    │
+                                                          └──────┬───────┘
                                                                  │ 2. transacción DB:
                                                                  │    - update estado
                                                                  │    - insert StatusHistory
@@ -151,48 +153,64 @@ oro es que **la request HTTP que guarda datos nunca espera a que SMTP responda.*
                                                                  │    - insert EmailLog (PENDIENTE)
                                                                  ▼
                                                           ┌──────────────┐
-                                                    3.    │   EmailLog   │  ◀── outbox
-                                              responde ───│   (SQLite)   │
-                                              200 OK      └──────┬───────┘
-                                                                 │ 4. poll cada N ms
-                                                                 ▼
-                                                          ┌──────────────┐
-                                                          │ email.worker │
-                                                          │ (background) │
+                                                          │   EmailLog   │  ◀── outbox
+                                                          │  (Postgres)  │
                                                           └──────┬───────┘
-                                                                 │ 5. nodemailer.sendMail()
+                                                                 │ 3. tx confirmada:
+                                                                 │    enviarCorreoInmediato()
                                                                  ▼
                                                           ┌──────────────┐
-                                                          │ SMTP Office  │──▶ Bandeja Outlook
-                                                          │ 365 / otro   │    del destinatario
+                                                    4.    │ nodemailer   │──▶ SMTP Office365
+                                              responde ───│ .sendMail()  │    ──▶ Outlook del
+                                          200 OK (ENVIADO │ (timeout 5s) │        destinatario
+                                           o FALLIDO)     └──────────────┘
+                                                                 ▲
+                                                                 │ 5. si quedó FALLIDO,
+                                                                 │    Vercel Cron reintenta
+                                                          ┌──────┴───────┐
+                                                          │ GET /api/cron│
+                                                          │ /process-    │
+                                                          │ emails       │
                                                           └──────────────┘
 ```
 
 1. El controlador valida los datos y, dentro de **una sola transacción de Prisma**,
-   cambia el estado, guarda el historial y **encola** el correo (`EmailLog`,
-   estado `PENDIENTE`) — no llama a SMTP directamente.
-2. La API responde de inmediato (`200 OK`) con el registro actualizado. El usuario ve
-   su cambio guardado al instante, sin esperar el envío.
-3. Un **worker en proceso separado** (`src/services/email.worker.ts`), arrancado junto
-   al servidor, revisa la tabla cada `EMAIL_WORKER_INTERVAL_MS` (5s por defecto) y
-   despacha los correos `PENDIENTE`/`FALLIDO` con reintentos pendientes vía
-   **Nodemailer** sobre SMTP.
-4. Si el envío falla (SMTP caído, credenciales vencidas), se marca `FALLIDO` con el
-   error y se reintenta en la siguiente pasada, hasta `MAX_INTENTOS` (5). Nada de esto
-   bloquea al usuario ni requiere que reintente manualmente.
+   cambia el estado, guarda el historial y **encola** el correo (`EmailLog`, estado
+   `PENDIENTE`) — la plantilla ya queda armada con asunto y cuerpo HTML.
+2. Confirmada la transacción, el controlador llama a `enviarCorreoInmediato(emailLogId)`
+   **dentro de la misma request** (envío "inline"): intenta el `sendMail` de una vez y
+   marca el `EmailLog` como `ENVIADO` o `FALLIDO` según el resultado. La respuesta HTTP
+   sale recién después de ese intento — así el usuario ve en el momento si el correo
+   salió o no, sin necesitar refrescar nada.
+3. El transporte SMTP tiene timeouts cortos a propósito (`connectionTimeout` /
+   `socketTimeout` = 5s, en `src/services/mailer.ts`): si Office 365 no responde rápido,
+   la request falla pronto en vez de colgarse cerca del límite de las funciones
+   serverless (10s en el plan Hobby de Vercel).
+4. Si el envío falla, el `EmailLog` queda `FALLIDO` con el error — nada de esto revierte
+   el cambio de estado ni bloquea al usuario: su registro se guardó igual.
+5. Un **Cron Job de Vercel** (`vercel.json` → `crons`) llama periódicamente a
+   `GET /api/cron/process-emails`, protegido con `CRON_SECRET`, que reintenta en lote
+   todo lo que siga `PENDIENTE`/`FALLIDO` con reintentos disponibles (hasta 5 intentos
+   por correo). En el plan Hobby, Vercel solo permite Cron **1 vez al día**; en el plan
+   Pro se puede bajar a cada 1-5 minutos editando el `schedule` en `vercel.json`.
 
-### Por qué este patrón y no una cola con Redis/BullMQ
+### Por qué "outbox" y no una cola con Redis/BullMQ
 
 Para el tamaño de este sistema (cientos/miles de correos, no millones), una tabla-outbox
 en la misma base de datos da:
-- **Cero infraestructura adicional** (no hay que operar Redis).
+- **Cero infraestructura adicional** (no hay que operar Redis, y encaja con el modelo
+  serverless de Vercel, donde no hay un proceso persistente que consuma una cola).
 - **Atomicidad gratis**: el cambio de estado y el "voy a enviar este correo" quedan en
   la misma transacción — si la transacción falla, no queda un correo fantasma encolado.
 - **Reintentos y auditoría** ya vienen incluidos (`intentos`, `ultimoError`, `estado`).
 
-Si el volumen crece mucho, el mismo contrato (`encolarCorreo` → tabla → worker) se
-puede mover a BullMQ/Redis o a una cola gestionada (SQS, Service Bus) cambiando solo
-`email.service.ts` y `email.worker.ts`, sin tocar los controladores.
+Si el volumen crece mucho, el mismo contrato (`encolarCorreo` → tabla → `procesarLote`)
+se puede mover a una cola gestionada (QStash, SQS) cambiando solo `email.service.ts` y
+`email.worker.ts`, sin tocar los controladores.
+
+> En desarrollo local (`npm run dev`, sin Vercel) además sigue corriendo un worker con
+> `setInterval` (`startEmailWorker` en `server.ts`) que emula el Cron mientras se prueba
+> en la máquina del desarrollador — no se usa en producción.
 
 ### Envío real: SMTP de Microsoft 365/Outlook
 
@@ -239,7 +257,7 @@ export async function decidirRuta(req: Request, res: Response) {
 
   const emails = normalizarDestinatarios(destinatarios); // valida formato, dedup
 
-  const record = await prisma.$transaction(async (tx) => {
+  const { record, emailLogId } = await prisma.$transaction(async (tx) => {
     const actualizado = await tx.conciliationRecord.update({
       where: { id },
       data: { tipoFlujo, estado: "EN_REVISION_TECNICA" },
@@ -247,23 +265,27 @@ export async function decidirRuta(req: Request, res: Response) {
 
     await tx.statusHistory.create({ data: { /* auditoría */ } });
 
-    await encolarCorreo({
+    const emailLog = await encolarCorreo({
       record: actualizado,
       trigger: "NUEVO_REQUERIMIENTO",
       destinatarios: emails,
       tx, // misma transacción: si algo falla, no queda correo huérfano
     });
 
-    return actualizado;
+    return { record: actualizado, emailLogId: emailLog.id };
   });
 
-  res.json(record); // responde de inmediato; el envío real lo hace el worker
+  // Fuera de la transacción (es I/O externo): intenta el envío ya mismo.
+  // Si SMTP falla, el EmailLog queda FALLIDO y lo recoge el Cron de reintento.
+  await enviarCorreoInmediato(emailLogId);
+
+  res.json(record);
 }
 ```
 
 `encolarCorreo` (en `email.service.ts`) arma el asunto/cuerpo con la plantilla
-correspondiente y crea la fila en `EmailLog` — el envío real ocurre después, en
-background, como se describe en la sección 2.
+correspondiente y crea la fila en `EmailLog`. `enviarCorreoInmediato` (en
+`email.worker.ts`) hace el intento de envío real descrito en la sección 2.
 
 ---
 
@@ -290,3 +312,41 @@ stateDiagram-v2
 | Ver tablero / detalle                    | ✅ | ✅ | ✅ |
 
 Implementado con JWT + middleware `requireRole(...)` en `backend/src/middleware/auth.ts`.
+
+---
+
+## Topología de despliegue (Vercel + Supabase)
+
+Un solo proyecto de Vercel sirve el frontend estático y la API; pasos exactos en el
+[`README.md`](../README.md#despliegue-en-vercel).
+
+```mermaid
+flowchart LR
+    subgraph Vercel["Proyecto único en Vercel"]
+        FE["frontend/dist\n(React, estático)"]
+        API["api/[...path].ts\n(función serverless =\napp Express de backend/)"]
+        CRON["Vercel Cron\nGET /api/cron/process-emails"]
+    end
+
+    Browser["Navegador del usuario"] -->|"/ (SPA)"| FE
+    Browser -->|"/api/*"| API
+    API -->|"Prisma (pooled, 6543)"| Supabase[("Supabase\nPostgreSQL")]
+    CRON -->|"Bearer CRON_SECRET"| API
+    API -->|"SMTP (5s timeout)"| SMTP["smtp.office365.com"]
+    SMTP --> Outlook["Bandeja Outlook\ndel destinatario"]
+```
+
+- `vercel.json` define `installCommand`/`buildCommand`/`outputDirectory` (instala
+  `backend/` y `frontend/`, genera el cliente Prisma, buildea el frontend con Vite) y
+  el rewrite de SPA (`/((?!api/).*) → /index.html`) para que las rutas de React Router
+  sobrevivan un refresh de página.
+- `api/[...path].ts` reexporta la app Express tal cual (`export default app`) — Vercel
+  reconoce automáticamente cualquier archivo bajo `/api` como función serverless, y una
+  app de Express ya es un manejador `(req, res) => void`, así que no hace falta ningún
+  adaptador.
+- Frontend y API quedan en el mismo dominio (mismo proyecto), así que no hay problema
+  de CORS en producción.
+- La conexión a Postgres usa el **singleton cacheado en `globalThis`**
+  (`backend/src/db.ts`) para reutilizar la conexión entre invocaciones "calientes" de
+  la función, y la URL **pooled** de Supabase (pgbouncer, puerto 6543) para no agotar
+  el límite de conexiones concurrentes que permiten las funciones serverless.

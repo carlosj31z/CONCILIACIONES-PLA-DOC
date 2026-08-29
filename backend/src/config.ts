@@ -28,4 +28,9 @@ export const config = {
   },
 
   emailWorkerIntervalMs: Number(process.env.EMAIL_WORKER_INTERVAL_MS ?? 5000),
+
+  // Secreto que debe traer el Cron Job de Vercel para poder llamar a
+  // /api/cron/process-emails. Si no está configurado, el endpoint queda
+  // deshabilitado (nunca acepta llamadas anónimas).
+  cronSecret: process.env.CRON_SECRET,
 };

@@ -1,7 +1,9 @@
 import type { Request, Response } from "express";
+import { EstadoRegistro } from "@prisma/client";
 import { prisma } from "../db";
 import { HttpError } from "../middleware/errorHandler";
 import { encolarCorreo, normalizarDestinatarios } from "../services/email.service";
+import { enviarCorreoInmediato } from "../services/email.worker";
 import {
   actualizarTecnicaSchema,
   completarTecnicaSchema,
@@ -54,10 +56,11 @@ export async function crearRegistro(req: Request, res: Response) {
  * correos destino en el campo de etiquetas del frontend, y al guardar:
  *   1. Cambia el estado del registro a EN_REVISION_TECNICA.
  *   2. Registra el cambio en el historial de auditoría.
- *   3. Encola (no envía en línea) el correo de "nuevo requerimiento" para
- *      los destinatarios recibidos desde el frontend.
- * El envío real lo hace el worker asíncrono (services/email.worker.ts), así
- * que esta request responde de inmediato sin esperar a SMTP.
+ *   3. Encola el correo de "nuevo requerimiento" para los destinatarios
+ *      recibidos desde el frontend, dentro de la misma transacción.
+ * Confirmada la transacción, se intenta el envío inline (best-effort): si
+ * SMTP falla no se revierte nada ni se corta la respuesta — el correo queda
+ * en estado FALLIDO y lo recoge el Cron Job de reintento.
  */
 export async function decidirRuta(req: Request, res: Response) {
   const { id } = req.params;
@@ -72,7 +75,7 @@ export async function decidirRuta(req: Request, res: Response) {
 
   const emails = normalizarDestinatarios(destinatarios);
 
-  const record = await prisma.$transaction(async (tx) => {
+  const { record, emailLogId } = await prisma.$transaction(async (tx) => {
     const actualizado = await tx.conciliationRecord.update({
       where: { id },
       data: { tipoFlujo, estado: "EN_REVISION_TECNICA" },
@@ -87,15 +90,17 @@ export async function decidirRuta(req: Request, res: Response) {
       },
     });
 
-    await encolarCorreo({
+    const emailLog = await encolarCorreo({
       record: actualizado,
       trigger: "NUEVO_REQUERIMIENTO",
       destinatarios: emails,
       tx,
     });
 
-    return actualizado;
+    return { record: actualizado, emailLogId: emailLog.id };
   });
+
+  await enviarCorreoInmediato(emailLogId);
 
   res.json(record);
 }
@@ -145,7 +150,7 @@ export async function completarTarea(req: Request, res: Response) {
   const emails = normalizarDestinatarios(destinatarios);
   const estadoFinal = existente.tipoFlujo === "GENERAR_RECETA" ? "RECETA_GENERADA" : "ACTUALIZACION_COMPLETADA";
 
-  const record = await prisma.$transaction(async (tx) => {
+  const { record, emailLogId } = await prisma.$transaction(async (tx) => {
     await tx.technicalResponse.upsert({
       where: { recordId: id },
       create: { recordId: id, ...campos, completadoPorId: userId, completadoAt: new Date() },
@@ -166,15 +171,17 @@ export async function completarTarea(req: Request, res: Response) {
       },
     });
 
-    await encolarCorreo({
+    const emailLog = await encolarCorreo({
       record: actualizado,
       trigger: "RECETA_LISTA",
       destinatarios: emails,
       tx,
     });
 
-    return actualizado;
+    return { record: actualizado, emailLogId: emailLog.id };
   });
+
+  await enviarCorreoInmediato(emailLogId);
 
   res.json(record);
 }
@@ -182,9 +189,14 @@ export async function completarTarea(req: Request, res: Response) {
 export async function listarRegistros(req: Request, res: Response) {
   const { estado, planta, q } = req.query as Record<string, string | undefined>;
 
+  const estadoFiltro =
+    estado && (Object.values(EstadoRegistro) as string[]).includes(estado)
+      ? (estado as EstadoRegistro)
+      : undefined;
+
   const registros = await prisma.conciliationRecord.findMany({
     where: {
-      estado: estado || undefined,
+      estado: estadoFiltro,
       planta: planta || undefined,
       producto: q ? { contains: q } : undefined,
     },

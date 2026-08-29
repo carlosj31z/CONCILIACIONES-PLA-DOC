@@ -6,18 +6,12 @@ import { config } from "../config";
 import { HttpError } from "../middleware/errorHandler";
 import { loginSchema } from "../utils/validators";
 import type { AuthUser } from "../types";
-import { ROLES, type Role } from "../types/enums";
-
-function esRoleValido(role: string): role is Role {
-  return (ROLES as readonly string[]).includes(role);
-}
 
 export async function login(req: Request, res: Response) {
   const { email, password } = loginSchema.parse(req.body);
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.activo) throw new HttpError(401, "Credenciales inválidas");
-  if (!esRoleValido(user.role)) throw new HttpError(500, "El usuario tiene un rol inválido");
 
   const valido = await bcrypt.compare(password, user.passwordHash);
   if (!valido) throw new HttpError(401, "Credenciales inválidas");

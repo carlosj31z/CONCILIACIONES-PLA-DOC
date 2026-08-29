@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import type { Role } from "../types/enums";
+import type { Role } from "@prisma/client";
 import { config } from "../config";
 import { HttpError } from "./errorHandler";
 import type { AuthUser } from "../types";

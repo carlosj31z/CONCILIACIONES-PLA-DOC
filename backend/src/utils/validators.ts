@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TipoFlujo } from "@prisma/client";
 
 export const crearRegistroSchema = z.object({
   codigoProducto: z.string().trim().max(50).optional(),
@@ -10,7 +11,7 @@ export const crearRegistroSchema = z.object({
 });
 
 export const decisionSchema = z.object({
-  tipoFlujo: z.enum(["GENERAR_RECETA", "ACTUALIZAR_SIN_CONCILIACION"]),
+  tipoFlujo: z.nativeEnum(TipoFlujo),
   destinatarios: z.array(z.string().trim().min(3)).min(1, "Ingresa al menos un destinatario"),
 });
 

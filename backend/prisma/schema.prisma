@@ -1,20 +1,50 @@
 // Esquema de base de datos - Recetas de Conciliación
-// Motor por defecto: SQLite (cero configuración para desarrollo local).
-// Para producción, cambiar provider a "postgresql" y DATABASE_URL en .env.
-//
-// Nota: SQLite no soporta enums nativos en Prisma, por eso los campos de
-// "tipo cerrado" (role, estado, tipoFlujo, trigger, estadoEnvio) se modelan
-// como String y se validan en la capa de aplicación (ver src/types/enums.ts
-// y src/utils/validators.ts, fuente única de verdad de los valores válidos).
-// Al migrar a PostgreSQL estos campos pueden volver a ser `enum` nativos.
+// Motor: PostgreSQL (probado con Supabase). `url` debe ser la cadena de
+// conexión "pooled" (pgbouncer, puerto 6543) para funciones serverless;
+// `directUrl` es la conexión directa (puerto 5432), usada solo por
+// `prisma migrate` para aplicar el esquema. Ver README.md para el detalle
+// de dónde obtener cada una en Supabase.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" para desarrollo local; "rhel-openssl-3.0.x" es el binario que
+  // necesita el runtime de funciones serverless de Vercel (Amazon Linux).
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  PLANEAMIENTO
+  DOC_TECNICA
+  ADMIN
+}
+
+enum TipoFlujo {
+  GENERAR_RECETA
+  ACTUALIZAR_SIN_CONCILIACION
+}
+
+enum EstadoRegistro {
+  PENDIENTE_PLANEAMIENTO // Creado por Planeamiento, datos base en edición
+  EN_REVISION_TECNICA // Planeamiento definió la ruta y notificó a Doc. Técnica
+  RECETA_GENERADA // Doc. Técnica completó la ruta "Generar receta"
+  ACTUALIZACION_COMPLETADA // Doc. Técnica completó la ruta "Actualizar sin conciliación"
+}
+
+enum TriggerCorreo {
+  NUEVO_REQUERIMIENTO // Trigger 1: Planeamiento guarda datos base y elige ruta
+  RECETA_LISTA // Trigger 2: Documentación Técnica completa su tarea
+}
+
+enum EstadoEnvioCorreo {
+  PENDIENTE
+  ENVIADO
+  FALLIDO
 }
 
 model User {
@@ -22,7 +52,7 @@ model User {
   nombre       String
   email        String   @unique
   passwordHash String
-  role         String // PLANEAMIENTO | DOC_TECNICA | ADMIN
+  role         Role
   activo       Boolean  @default(true)
   createdAt    DateTime @default(now())
 
@@ -42,9 +72,8 @@ model ConciliationRecord {
   fechaConciliacion  DateTime
   motivoConciliacion String
 
-  tipoFlujo String? // GENERAR_RECETA | ACTUALIZAR_SIN_CONCILIACION (null hasta la decisión)
-  estado    String  @default("PENDIENTE_PLANEAMIENTO")
-  // PENDIENTE_PLANEAMIENTO | EN_REVISION_TECNICA | RECETA_GENERADA | ACTUALIZACION_COMPLETADA
+  tipoFlujo TipoFlujo? // se define recién cuando Planeamiento toma la decisión
+  estado    EstadoRegistro @default(PENDIENTE_PLANEAMIENTO)
 
   creadoPorId String
   creadoPor   User   @relation("CreadoPor", fields: [creadoPorId], references: [id])
@@ -98,24 +127,25 @@ model EmailRecipient {
   recordId  String
   record    ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
   email     String
-  trigger   String // NUEVO_REQUERIMIENTO | RECETA_LISTA
+  trigger   TriggerCorreo
   createdAt DateTime           @default(now())
 
   @@index([recordId, trigger])
 }
 
 // Outbox de correos: cada cambio de estado que dispara notificación crea una
-// fila aquí. Un worker en background la procesa de forma asíncrona y
-// reintenta si falla el envío (ver services/email.worker.ts).
+// fila aquí. En producción (Vercel) se intenta enviar en línea dentro de la
+// misma request; si falla, un Cron Job la reintenta llamando al endpoint
+// /api/cron/process-emails (ver services/email.worker.ts).
 model EmailLog {
   id            String             @id @default(cuid())
   recordId      String
   record        ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  trigger       String // NUEVO_REQUERIMIENTO | RECETA_LISTA
+  trigger       TriggerCorreo
   destinatarios String // JSON.stringify(string[])
   asunto        String
   cuerpoHtml    String
-  estado        String             @default("PENDIENTE") // PENDIENTE | ENVIADO | FALLIDO
+  estado        EstadoEnvioCorreo  @default(PENDIENTE)
   intentos      Int                @default(0)
   ultimoError   String?
   createdAt     DateTime           @default(now())
@@ -129,8 +159,8 @@ model StatusHistory {
   id            String             @id @default(cuid())
   recordId      String
   record        ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  estadoDesde   String?
-  estadoHasta   String
+  estadoDesde   EstadoRegistro?
+  estadoHasta   EstadoRegistro
   comentario    String?
   cambiadoPorId String
   cambiadoPor   User               @relation("CambiadoPor", fields: [cambiadoPorId], references: [id])

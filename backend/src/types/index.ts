@@ -1,4 +1,4 @@
-import type { Role } from "./enums";
+import type { Role } from "@prisma/client";
 
 export interface AuthUser {
   id: string;

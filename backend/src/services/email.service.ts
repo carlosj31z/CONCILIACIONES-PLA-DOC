@@ -1,7 +1,6 @@
-import type { Prisma, ConciliationRecord } from "@prisma/client";
+import type { Prisma, ConciliationRecord, TriggerCorreo } from "@prisma/client";
 import { prisma } from "../db";
 import { buildNuevoRequerimientoEmail, buildRecetaListaEmail } from "./email.templates";
-import type { TriggerCorreo } from "../types/enums";
 
 interface EncolarCorreoParams {
   record: ConciliationRecord;
@@ -26,10 +25,11 @@ export function normalizarDestinatarios(emails: string[]): string[] {
   return Array.from(new Set(limpios));
 }
 
-// Encola un correo en la tabla EmailLog (outbox). No lo envía: la request
-// HTTP del usuario retorna de inmediato y un worker en background hace el
-// envío real, con reintentos si SMTP falla. Esto es lo que hace que el
-// envío sea "invisible" para el usuario y no dependa de su cliente Outlook.
+// Encola un correo en la tabla EmailLog (outbox), dentro de la misma
+// transacción que el cambio de estado que lo origina. Devuelve la fila
+// creada para que el controlador, ya fuera de la transacción, dispare el
+// envío inline (`enviarCorreoInmediato`) sin arriesgar un correo huérfano
+// si la transacción llegara a fallar.
 export async function encolarCorreo({ record, trigger, destinatarios, tx }: EncolarCorreoParams) {
   const db = tx ?? prisma;
 
@@ -42,7 +42,7 @@ export async function encolarCorreo({ record, trigger, destinatarios, tx }: Enco
     data: destinatarios.map((email) => ({ recordId: record.id, email, trigger })),
   });
 
-  await db.emailLog.create({
+  return db.emailLog.create({
     data: {
       recordId: record.id,
       trigger,
