@@ -1,0 +1,140 @@
+// Esquema de base de datos - Recetas de Conciliación
+// Motor por defecto: SQLite (cero configuración para desarrollo local).
+// Para producción, cambiar provider a "postgresql" y DATABASE_URL en .env.
+//
+// Nota: SQLite no soporta enums nativos en Prisma, por eso los campos de
+// "tipo cerrado" (role, estado, tipoFlujo, trigger, estadoEnvio) se modelan
+// como String y se validan en la capa de aplicación (ver src/types/enums.ts
+// y src/utils/validators.ts, fuente única de verdad de los valores válidos).
+// Al migrar a PostgreSQL estos campos pueden volver a ser `enum` nativos.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  nombre       String
+  email        String   @unique
+  passwordHash String
+  role         String // PLANEAMIENTO | DOC_TECNICA | ADMIN
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  registrosCreados      ConciliationRecord[] @relation("CreadoPor")
+  respuestasCompletadas TechnicalResponse[]  @relation("CompletadoPor")
+  historial             StatusHistory[]      @relation("CambiadoPor")
+}
+
+// Entidad principal: un requerimiento de conciliación / actualización de receta.
+// Corresponde a una fila del Excel histórico (Cod. Pro., Producto, Planta,
+// Fecha de Conciliación, Motivo de Conciliación) + el flujo de estados nuevo.
+model ConciliationRecord {
+  id                 String   @id @default(cuid())
+  codigoProducto     String? // "Cod. Pro." - opcional: el histórico trae vacíos y "-"
+  producto           String
+  planta             String // Ej. "1 YT", "2 MC" (código de planta/línea)
+  fechaConciliacion  DateTime
+  motivoConciliacion String
+
+  tipoFlujo String? // GENERAR_RECETA | ACTUALIZAR_SIN_CONCILIACION (null hasta la decisión)
+  estado    String  @default("PENDIENTE_PLANEAMIENTO")
+  // PENDIENTE_PLANEAMIENTO | EN_REVISION_TECNICA | RECETA_GENERADA | ACTUALIZACION_COMPLETADA
+
+  creadoPorId String
+  creadoPor   User   @relation("CreadoPor", fields: [creadoPorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lotes            RecordLote[]
+  respuestaTecnica TechnicalResponse?
+  destinatarios    EmailRecipient[]
+  correos          EmailLog[]
+  historial        StatusHistory[]
+
+  @@index([estado])
+  @@index([planta])
+  @@index([codigoProducto])
+}
+
+// Lotes asociados al requerimiento (el Excel original lista múltiples lotes
+// y materiales en texto libre; aquí se normalizan como filas independientes).
+model RecordLote {
+  id         String             @id @default(cuid())
+  recordId   String
+  record     ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  numeroLote String
+  detalle    String?
+
+  @@index([recordId])
+}
+
+// Campos exclusivos de Documentación Técnica (uno a uno con el registro).
+model TechnicalResponse {
+  id            String             @id @default(cuid())
+  recordId      String             @unique
+  record        ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  variantes     String?
+  ejecucion     String?
+  observaciones String?
+
+  completadoPorId String?
+  completadoPor   User?     @relation("CompletadoPor", fields: [completadoPorId], references: [id])
+  completadoAt    DateTime?
+
+  updatedAt DateTime @updatedAt
+}
+
+// Correos ingresados en el campo tipo "etiquetas" del frontend, por cada
+// disparador. Queda como registro de a quién se notificó y cuándo.
+model EmailRecipient {
+  id        String             @id @default(cuid())
+  recordId  String
+  record    ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  email     String
+  trigger   String // NUEVO_REQUERIMIENTO | RECETA_LISTA
+  createdAt DateTime           @default(now())
+
+  @@index([recordId, trigger])
+}
+
+// Outbox de correos: cada cambio de estado que dispara notificación crea una
+// fila aquí. Un worker en background la procesa de forma asíncrona y
+// reintenta si falla el envío (ver services/email.worker.ts).
+model EmailLog {
+  id            String             @id @default(cuid())
+  recordId      String
+  record        ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  trigger       String // NUEVO_REQUERIMIENTO | RECETA_LISTA
+  destinatarios String // JSON.stringify(string[])
+  asunto        String
+  cuerpoHtml    String
+  estado        String             @default("PENDIENTE") // PENDIENTE | ENVIADO | FALLIDO
+  intentos      Int                @default(0)
+  ultimoError   String?
+  createdAt     DateTime           @default(now())
+  enviadoAt     DateTime?
+
+  @@index([estado])
+}
+
+// Auditoría de cambios de estado (quién, cuándo, de qué a qué).
+model StatusHistory {
+  id            String             @id @default(cuid())
+  recordId      String
+  record        ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  estadoDesde   String?
+  estadoHasta   String
+  comentario    String?
+  cambiadoPorId String
+  cambiadoPor   User               @relation("CambiadoPor", fields: [cambiadoPorId], references: [id])
+  createdAt     DateTime           @default(now())
+
+  @@index([recordId])
+}
