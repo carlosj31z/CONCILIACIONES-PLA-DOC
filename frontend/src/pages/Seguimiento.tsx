@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import { LoadingState } from "../components/Spinner";
+import { useAuth } from "../context/AuthContext";
 import { ESTADOS_REGISTRO, ESTADO_LABELS, TIPO_FLUJO_LABELS, type ConciliationRecord } from "../types";
 
 export function Seguimiento() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const puedeCrear = user?.role === "PLANEAMIENTO" || user?.role === "ADMIN";
   const [registros, setRegistros] = useState<ConciliationRecord[]>([]);
   const [q, setQ] = useState("");
   const [planta, setPlanta] = useState("");
@@ -41,9 +44,11 @@ export function Seguimiento() {
           <h1>Seguimiento de conciliaciones</h1>
           <p>{filtrados.length} de {registros.length} registro(s)</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate("/registros/nuevo")}>
-          + Nuevo requerimiento
-        </button>
+        {puedeCrear && (
+          <button className="btn btn-primary" onClick={() => navigate("/registros/nuevo")}>
+            + Nuevo requerimiento
+          </button>
+        )}
       </div>
 
       <div className="filters">
