@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { EmailTagInput } from "../components/EmailTagInput";
 import { MaterialLookup } from "../components/MaterialLookup";
+import { RecetasConciliarSection, type NuevaReceta } from "../components/RecetasConciliarSection";
 import { Spinner } from "../components/Spinner";
-import { TIPO_FLUJO_LABELS, TIPOS_FLUJO, type ConciliationRecord, type DirectoryUser, type TipoFlujo } from "../types";
+import { TIPO_FLUJO_LABELS, TIPOS_FLUJO, type ConciliationRecord, type DirectoryUser, type ListaConciliar, type TipoFlujo } from "../types";
 
 function hoyISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -21,6 +22,7 @@ export function NewRecord() {
   const [motivoConciliacion, setMotivoConciliacion] = useState("");
   const [materialesAConciliar, setMaterialesAConciliar] = useState("");
   const [asuntosRegulatorios, setAsuntosRegulatorios] = useState("");
+  const [listasConciliar, setListasConciliar] = useState<ListaConciliar[]>([]);
 
   // Paso 2: decisión de flujo + notificación.
   const [record, setRecord] = useState<ConciliationRecord | null>(null);
@@ -60,6 +62,7 @@ export function NewRecord() {
         motivoConciliacion,
         materialesAConciliar,
         asuntosRegulatorios: asuntosRegulatorios || undefined,
+        listasConciliar: listasConciliar.map(({ id, ...resto }) => resto),
       });
       setRecord(nuevo);
     } catch (err) {
@@ -233,6 +236,17 @@ export function NewRecord() {
               value={materialesAConciliar}
               onChange={(e) => setMaterialesAConciliar(e.target.value)}
               required
+            />
+          </div>
+
+          <div className="form-field span-2">
+            <label>Recetas a conciliar</label>
+            <RecetasConciliarSection
+              items={listasConciliar}
+              onAdd={(item: NuevaReceta) =>
+                setListasConciliar((prev) => [...prev, { ...item, id: crypto.randomUUID() }])
+              }
+              onRemove={(id) => setListasConciliar((prev) => prev.filter((i) => i.id !== id))}
             />
           </div>
 

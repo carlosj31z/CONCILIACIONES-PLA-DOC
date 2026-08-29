@@ -99,6 +99,7 @@ model ConciliationRecord {
   destinatarios    EmailRecipient[]
   correos          EmailLog[]
   historial        StatusHistory[]
+  listasConciliar  RecordListaConciliar[]
 
   @@index([estado])
   @@index([planta])
@@ -113,6 +114,36 @@ model RecordLote {
   record     ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
   numeroLote String
   detalle    String?
+
+  @@index([recordId])
+}
+
+// Listas de materiales (BOM) que se van a conciliar en este requerimiento.
+// Cada fila viene de una de dos fuentes ("origen"): "SAP" (elegida buscando
+// en el Maestro de Listas de Materiales de la herramienta SAP MM & LM — se
+// guardan sus datos ya resueltos, no una referencia en vivo) o "MANUAL"
+// (escrita a mano cuando la lista no está en SAP o no se encontró).
+model RecordListaConciliar {
+  id       String             @id @default(cuid())
+  recordId String
+  record   ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  origen String // "SAP" | "MANUAL"
+
+  // Presentes cuando origen = "SAP" (copiados del Maestro de Listas de
+  // Materiales al momento de elegir, para no depender de una consulta en
+  // vivo a otro proyecto de Supabase cada vez que se muestra el registro).
+  material String?
+  listaAlt String?
+  producto String?
+  centro   String?
+  estado   String?
+
+  // Texto libre: obligatorio cuando origen = "MANUAL", opcional como nota
+  // adicional cuando origen = "SAP".
+  descripcion String?
+
+  createdAt DateTime @default(now())
 
   @@index([recordId])
 }

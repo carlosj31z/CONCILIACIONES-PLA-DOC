@@ -4,6 +4,7 @@ import { api, ApiError } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import { EmailTagInput } from "../components/EmailTagInput";
 import { MaterialLookup } from "../components/MaterialLookup";
+import { RecetasConciliarSection, type NuevaReceta } from "../components/RecetasConciliarSection";
 import { RecordFlowStatus } from "../components/RecordFlowStatus";
 import { LoadingState, Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
@@ -222,6 +223,16 @@ export function RecordDetail() {
     }
   }
 
+  async function agregarLista(item: NuevaReceta) {
+    await api.post(`/records/${id}/listas-conciliar`, item);
+    await cargar();
+  }
+
+  async function quitarLista(listaId: string) {
+    await api.delete(`/records/${id}/listas-conciliar/${listaId}`);
+    await cargar();
+  }
+
   function cancelarEdicion() {
     cargarDatosEdicion(record!);
     setEditando(false);
@@ -344,6 +355,16 @@ export function RecordDetail() {
                 </div>
               </>
             )}
+          </div>
+
+          <div className="card detail-section">
+            <h3>Recetas a conciliar</h3>
+            <RecetasConciliarSection
+              items={record.listasConciliar ?? []}
+              onAdd={agregarLista}
+              onRemove={quitarLista}
+              disabled={!puedeEditarDatos}
+            />
           </div>
 
           <div className="card detail-section">

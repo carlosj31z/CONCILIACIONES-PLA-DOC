@@ -4,10 +4,12 @@ import { requireAuth, requireRole } from "../middleware/auth";
 import {
   actualizarRegistro,
   actualizarRespuestaTecnica,
+  agregarListaConciliar,
   completarTarea,
   concluirRegistro,
   crearRegistro,
   decidirRuta,
+  eliminarListaConciliar,
   eliminarRegistro,
   listarRegistros,
   obtenerRegistro,
@@ -26,6 +28,16 @@ recordsRouter.get("/:id", asyncHandler(obtenerRegistro));
 recordsRouter.post("/", requireRole("PLANEAMIENTO", "ADMIN"), asyncHandler(crearRegistro));
 recordsRouter.patch("/:id", requireRole("PLANEAMIENTO", "ADMIN"), asyncHandler(actualizarRegistro));
 recordsRouter.delete("/:id", requireRole("PLANEAMIENTO", "ADMIN"), asyncHandler(eliminarRegistro));
+recordsRouter.post(
+  "/:id/listas-conciliar",
+  requireRole("PLANEAMIENTO", "ADMIN"),
+  asyncHandler(agregarListaConciliar)
+);
+recordsRouter.delete(
+  "/:id/listas-conciliar/:listaId",
+  requireRole("PLANEAMIENTO", "ADMIN"),
+  asyncHandler(eliminarListaConciliar)
+);
 recordsRouter.post("/:id/decision", requireRole("PLANEAMIENTO", "ADMIN"), asyncHandler(decidirRuta));
 recordsRouter.post("/:id/concluir", requireRole("PLANEAMIENTO", "ADMIN"), asyncHandler(concluirRegistro));
 recordsRouter.post(

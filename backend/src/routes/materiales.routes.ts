@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth } from "../middleware/auth";
-import { buscarMateriales } from "../controllers/materiales.controller";
+import { buscarListasConciliar, buscarMateriales } from "../controllers/materiales.controller";
 
 export const materialesRouter = Router();
 
@@ -11,3 +11,7 @@ materialesRouter.use(requireAuth);
 // Materiales de SAP para autocompletar Código/Producto al crear o editar
 // un requerimiento.
 materialesRouter.get("/buscar", asyncHandler(buscarMateriales));
+
+// Búsqueda de listas de materiales (BOM) para la sección "Recetas a
+// conciliar" del requerimiento.
+materialesRouter.get("/listas", asyncHandler(buscarListasConciliar));

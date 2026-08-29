@@ -79,6 +79,20 @@ export interface EmailRecipient {
   createdAt: string;
 }
 
+export type OrigenListaConciliar = "SAP" | "MANUAL";
+
+export interface ListaConciliar {
+  id: string;
+  origen: OrigenListaConciliar;
+  material?: string | null;
+  listaAlt?: string | null;
+  producto?: string | null;
+  centro?: string | null;
+  estado?: string | null;
+  descripcion?: string | null;
+  createdAt?: string;
+}
+
 export interface StatusHistoryEntry {
   id: string;
   estadoDesde: EstadoRegistro | null;
@@ -106,6 +120,7 @@ export interface ConciliationRecord {
   lotes?: RecordLote[];
   respuestaTecnica?: TechnicalResponse | null;
   destinatarios?: EmailRecipient[];
+  listasConciliar?: ListaConciliar[];
   historial?: StatusHistoryEntry[];
   emailEstado?: "ENVIADO" | "FALLIDO";
 }

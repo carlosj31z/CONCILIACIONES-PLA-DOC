@@ -833,6 +833,123 @@ a {
   color: var(--color-text);
 }
 
+.receta-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: default;
+}
+
+.receta-option > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.receta-option:hover {
+  background: none;
+}
+
+.receta-add-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.receta-manual-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.receta-manual-form input[type="text"] {
+  flex: 1;
+  min-width: 220px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+}
+
+.receta-manual-form input[type="text"]:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.receta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.receta-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-elevated);
+  font-size: 13px;
+}
+
+.receta-tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.receta-tag-sap {
+  background: var(--color-primary-soft);
+  color: #a7c6ff;
+}
+
+.receta-tag-manual {
+  background: var(--color-surface-hover);
+  color: var(--color-text-muted);
+}
+
+.receta-item-label {
+  flex: 1;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.receta-item-remove {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+
+.receta-item-remove:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
 .material-lookup-tag {
   display: inline-block;
   margin-left: 8px;

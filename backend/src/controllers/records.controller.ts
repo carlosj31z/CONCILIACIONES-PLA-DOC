@@ -10,6 +10,7 @@ import {
   completarTecnicaSchema,
   crearRegistroSchema,
   decisionSchema,
+  listaConciliarSchema,
   rechazarPlaneamientoSchema,
   rechazarTecnicaSchema,
 } from "../utils/validators";
@@ -22,6 +23,20 @@ const ESTADOS_ELIMINABLES = [
   "ENTREGADA",
 ] as const;
 const ESTADOS_PENDIENTES_DECISION = ["ENTREGADA"] as const;
+
+/** Mismo criterio de "puede editar" que usa `actualizarRegistro`: dueño (o ADMIN) y estado aún en curso. */
+function verificarPuedeEditar(
+  existente: { creadoPorId: string; estado: string },
+  userId: string,
+  role: string
+) {
+  if (existente.creadoPorId !== userId && role !== "ADMIN") {
+    throw new HttpError(403, "Solo quien creó el requerimiento puede editarlo");
+  }
+  if (!ESTADOS_EDITABLES.includes(existente.estado as (typeof ESTADOS_EDITABLES)[number])) {
+    throw new HttpError(409, "Este registro ya fue cerrado y no se puede editar");
+  }
+}
 
 async function destinatariosOriginales(recordId: string): Promise<string[]> {
   const filas = await prisma.emailRecipient.findMany({
@@ -51,7 +66,9 @@ export async function crearRegistro(req: Request, res: Response) {
         materialesAConciliar: data.materialesAConciliar,
         asuntosRegulatorios: data.asuntosRegulatorios || null,
         creadoPorId: userId,
+        listasConciliar: { create: data.listasConciliar },
       },
+      include: { listasConciliar: true },
     });
 
     await tx.statusHistory.create({
@@ -138,13 +155,7 @@ export async function actualizarRegistro(req: Request, res: Response) {
 
   const existente = await prisma.conciliationRecord.findUnique({ where: { id } });
   if (!existente) throw new HttpError(404, "Registro no encontrado");
-
-  if (existente.creadoPorId !== userId && req.user!.role !== "ADMIN") {
-    throw new HttpError(403, "Solo quien creó el requerimiento puede editarlo");
-  }
-  if (!ESTADOS_EDITABLES.includes(existente.estado as (typeof ESTADOS_EDITABLES)[number])) {
-    throw new HttpError(409, "Este registro ya fue cerrado y no se puede editar");
-  }
+  verificarPuedeEditar(existente, userId, req.user!.role);
 
   const record = await prisma.$transaction(async (tx) => {
     const actualizado = await tx.conciliationRecord.update({
@@ -170,6 +181,43 @@ export async function actualizarRegistro(req: Request, res: Response) {
   });
 
   res.json(record);
+}
+
+/**
+ * Rol Planeamiento (dueño) o ADMIN: agrega una lista de materiales a la
+ * sección "Recetas a conciliar" de un registro ya creado (elegida buscando
+ * en SAP, o escrita a mano).
+ */
+export async function agregarListaConciliar(req: Request, res: Response) {
+  const { id } = req.params;
+  const data = listaConciliarSchema.parse(req.body);
+  const userId = req.user!.id;
+
+  const existente = await prisma.conciliationRecord.findUnique({ where: { id } });
+  if (!existente) throw new HttpError(404, "Registro no encontrado");
+  verificarPuedeEditar(existente, userId, req.user!.role);
+
+  const lista = await prisma.recordListaConciliar.create({ data: { recordId: id, ...data } });
+  res.status(201).json(lista);
+}
+
+/**
+ * Rol Planeamiento (dueño) o ADMIN: quita una lista de materiales de la
+ * sección "Recetas a conciliar" de un registro ya creado.
+ */
+export async function eliminarListaConciliar(req: Request, res: Response) {
+  const { id, listaId } = req.params;
+  const userId = req.user!.id;
+
+  const existente = await prisma.conciliationRecord.findUnique({ where: { id } });
+  if (!existente) throw new HttpError(404, "Registro no encontrado");
+  verificarPuedeEditar(existente, userId, req.user!.role);
+
+  const lista = await prisma.recordListaConciliar.findUnique({ where: { id: listaId } });
+  if (!lista || lista.recordId !== id) throw new HttpError(404, "Lista no encontrada en este registro");
+
+  await prisma.recordListaConciliar.delete({ where: { id: listaId } });
+  res.status(204).end();
 }
 
 /**
@@ -459,6 +507,7 @@ export async function obtenerRegistro(req: Request, res: Response) {
       lotes: true,
       respuestaTecnica: { include: { completadoPor: { select: { nombre: true } } } },
       destinatarios: true,
+      listasConciliar: { orderBy: { createdAt: "asc" } },
       historial: { orderBy: { createdAt: "asc" }, include: { cambiadoPor: { select: { nombre: true } } } },
     },
   });

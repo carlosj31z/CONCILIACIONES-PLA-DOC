@@ -1,6 +1,23 @@
 import { z } from "zod";
 import { Role, TipoFlujo } from "@prisma/client";
 
+// Una fila de la sección "Recetas a conciliar": una lista de materiales
+// (BOM) elegida buscando en SAP (origen "SAP", con sus datos ya copiados) o
+// escrita a mano (origen "MANUAL", requiere descripción).
+export const listaConciliarSchema = z
+  .object({
+    origen: z.enum(["SAP", "MANUAL"]),
+    material: z.string().trim().max(50).optional(),
+    listaAlt: z.string().trim().max(20).optional(),
+    producto: z.string().trim().max(200).optional(),
+    centro: z.string().trim().max(50).optional(),
+    estado: z.string().trim().max(50).optional(),
+    descripcion: z.string().trim().max(500).optional(),
+  })
+  .refine((d) => (d.origen === "MANUAL" ? !!d.descripcion?.trim() : !!d.material?.trim()), {
+    message: "Falta el código de material (si viene de SAP) o la descripción (si es manual)",
+  });
+
 export const crearRegistroSchema = z.object({
   codigoProducto: z.string().trim().max(50).optional(),
   producto: z.string().trim().min(2, "El producto es requerido"),
@@ -9,6 +26,7 @@ export const crearRegistroSchema = z.object({
   motivoConciliacion: z.string().trim().min(5, "El motivo es requerido"),
   materialesAConciliar: z.string().trim().min(2, "Los materiales a conciliar son requeridos"),
   asuntosRegulatorios: z.string().trim().optional(),
+  listasConciliar: z.array(listaConciliarSchema).default([]),
 });
 
 export const actualizarRegistroSchema = z.object({
