@@ -39,10 +39,11 @@ async function despacharUno(correo: EmailLog): Promise<boolean> {
  * si SMTP falla, el correo queda en estado FALLIDO para que lo recoja el
  * Cron Job de reintento (`procesarLote`, vía /api/cron/process-emails).
  */
-export async function enviarCorreoInmediato(emailLogId: string): Promise<void> {
+export async function enviarCorreoInmediato(emailLogId: string): Promise<boolean> {
   const correo = await prisma.emailLog.findUnique({ where: { id: emailLogId } });
-  if (!correo || correo.estado === "ENVIADO") return;
-  await despacharUno(correo);
+  if (!correo) return false;
+  if (correo.estado === "ENVIADO") return true;
+  return despacharUno(correo);
 }
 
 /**

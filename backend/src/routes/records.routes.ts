@@ -2,6 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth, requireRole } from "../middleware/auth";
 import {
+  actualizarRegistro,
   actualizarRespuestaTecnica,
   completarTarea,
   crearRegistro,
@@ -19,6 +20,7 @@ recordsRouter.get("/:id", asyncHandler(obtenerRegistro));
 
 // Planeamiento
 recordsRouter.post("/", requireRole("PLANEAMIENTO", "ADMIN"), asyncHandler(crearRegistro));
+recordsRouter.patch("/:id", requireRole("PLANEAMIENTO", "ADMIN"), asyncHandler(actualizarRegistro));
 recordsRouter.post("/:id/decision", requireRole("PLANEAMIENTO", "ADMIN"), asyncHandler(decidirRuta));
 
 // Documentación Técnica

@@ -4,10 +4,21 @@ import { Role, TipoFlujo } from "@prisma/client";
 export const crearRegistroSchema = z.object({
   codigoProducto: z.string().trim().max(50).optional(),
   producto: z.string().trim().min(2, "El producto es requerido"),
-  planta: z.string().trim().min(1, "La planta es requerida"),
+  planta: z.enum(["1", "2"], { errorMap: () => ({ message: "La planta debe ser 1 o 2" }) }),
   fechaConciliacion: z.coerce.date(),
   motivoConciliacion: z.string().trim().min(5, "El motivo es requerido"),
-  lotes: z.array(z.string().trim().min(1)).default([]),
+  materialesAConciliar: z.string().trim().min(2, "Los materiales a conciliar son requeridos"),
+  asuntosRegulatorios: z.string().trim().optional(),
+});
+
+export const actualizarRegistroSchema = z.object({
+  codigoProducto: z.string().trim().max(50).optional(),
+  producto: z.string().trim().min(2).optional(),
+  planta: z.enum(["1", "2"]).optional(),
+  fechaConciliacion: z.coerce.date().optional(),
+  motivoConciliacion: z.string().trim().min(5).optional(),
+  materialesAConciliar: z.string().trim().min(2).optional(),
+  asuntosRegulatorios: z.string().trim().optional(),
 });
 
 export const decisionSchema = z.object({

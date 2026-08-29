@@ -47,6 +47,8 @@ export function buildNuevoRequerimientoEmail(record: ConciliationRecord) {
     ${row("Cód. Producto", record.codigoProducto ?? "—")}
     ${row("Planta", record.planta)}
     ${row("Fecha de conciliación", record.fechaConciliacion.toLocaleDateString("es-PE"))}
+    ${row("Materiales a conciliar", record.materialesAConciliar)}
+    ${record.asuntosRegulatorios ? row("Asuntos regulatorios", record.asuntosRegulatorios) : ""}
     ${row("Ruta elegida", record.tipoFlujo === "GENERAR_RECETA" ? "Generar receta de conciliación" : "Actualizar receta sin generar conciliación")}
     <p style="margin:16px 0 0;font-size:14px;">Planeamiento registró el motivo de conciliación y espera la revisión de Documentación Técnica.</p>
     <p style="margin:20px 0 0;">

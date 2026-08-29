@@ -11,21 +11,27 @@ const CORREOS_FRECUENTES = [
   "regulatorios@empresa.com",
 ];
 
+function hoyISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function NewRecord() {
   const navigate = useNavigate();
 
   // Paso 1: datos base del requerimiento.
   const [codigoProducto, setCodigoProducto] = useState("");
   const [producto, setProducto] = useState("");
-  const [planta, setPlanta] = useState("");
-  const [fechaConciliacion, setFechaConciliacion] = useState("");
+  const [planta, setPlanta] = useState("1");
+  const [fechaConciliacion, setFechaConciliacion] = useState(hoyISO());
   const [motivoConciliacion, setMotivoConciliacion] = useState("");
-  const [lotesTexto, setLotesTexto] = useState("");
+  const [materialesAConciliar, setMaterialesAConciliar] = useState("");
+  const [asuntosRegulatorios, setAsuntosRegulatorios] = useState("");
 
   // Paso 2: decisión de flujo + notificación.
   const [record, setRecord] = useState<ConciliationRecord | null>(null);
   const [tipoFlujo, setTipoFlujo] = useState<TipoFlujo | null>(null);
   const [destinatarios, setDestinatarios] = useState<string[]>([]);
+  const [emailFallido, setEmailFallido] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,18 +42,14 @@ export function NewRecord() {
     setError(null);
     setLoading(true);
     try {
-      const lotes = lotesTexto
-        .split(/[\n,]/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-
       const nuevo = await api.post<ConciliationRecord>("/records", {
         codigoProducto: codigoProducto || undefined,
         producto,
         planta,
         fechaConciliacion,
         motivoConciliacion,
-        lotes,
+        materialesAConciliar,
+        asuntosRegulatorios: asuntosRegulatorios || undefined,
       });
       setRecord(nuevo);
     } catch (err) {
@@ -63,7 +65,11 @@ export function NewRecord() {
     setError(null);
     setLoading(true);
     try {
-      await api.post(`/records/${record.id}/decision`, { tipoFlujo, destinatarios });
+      const actualizado = await api.post<ConciliationRecord>(`/records/${record.id}/decision`, {
+        tipoFlujo,
+        destinatarios,
+      });
+      setEmailFallido(actualizado.emailEstado === "FALLIDO");
       setEnviado(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo enviar la notificación");
@@ -76,10 +82,18 @@ export function NewRecord() {
     return (
       <div className="card" style={{ maxWidth: 520 }}>
         <h1 style={{ fontSize: 18, marginTop: 0 }}>Requerimiento enviado a revisión técnica</h1>
-        <p>
-          Se notificó por correo a {destinatarios.length} destinatario(s). Documentación Técnica ya puede
-          trabajar sobre este registro.
-        </p>
+        {emailFallido ? (
+          <p className="form-error" style={{ marginTop: 0 }}>
+            El registro se envió a revisión técnica, pero el correo automático a {destinatarios.length}{" "}
+            destinatario(s) no se pudo despachar (fallo de conexión con el servidor de correo). El sistema lo
+            reintentará automáticamente; si sigue fallando, avisa a Documentación Técnica por otro medio.
+          </p>
+        ) : (
+          <p>
+            Se notificó por correo a {destinatarios.length} destinatario(s). Documentación Técnica ya puede
+            trabajar sobre este registro.
+          </p>
+        )}
         <button className="btn btn-primary" onClick={() => navigate(`/registros/${record!.id}`)}>
           Ver registro
         </button>
@@ -125,7 +139,7 @@ export function NewRecord() {
               suggestions={CORREOS_FRECUENTES}
               placeholder="Escribe un correo y presiona Enter…"
             />
-            <span className="hint">Recibirán el aviso de nuevo requerimiento en su bandeja de Outlook.</span>
+            <span className="hint">Recibirán el aviso de nuevo requerimiento en su bandeja de correo.</span>
           </div>
 
           {error && <div className="form-error">{error}</div>}
@@ -158,7 +172,10 @@ export function NewRecord() {
           </div>
           <div className="form-field">
             <label htmlFor="planta">Planta</label>
-            <input id="planta" type="text" placeholder="Ej. 1 YT" value={planta} onChange={(e) => setPlanta(e.target.value)} required />
+            <select id="planta" value={planta} onChange={(e) => setPlanta(e.target.value)} required>
+              <option value="1">1</option>
+              <option value="2">2</option>
+            </select>
           </div>
 
           <div className="form-field span-2">
@@ -175,10 +192,7 @@ export function NewRecord() {
               onChange={(e) => setFechaConciliacion(e.target.value)}
               required
             />
-          </div>
-          <div className="form-field">
-            <label htmlFor="lotes">Lotes (uno por línea o separados por coma)</label>
-            <input id="lotes" type="text" placeholder="L001, L002" value={lotesTexto} onChange={(e) => setLotesTexto(e.target.value)} />
+            <span className="hint">Por defecto, la fecha de hoy.</span>
           </div>
 
           <div className="form-field span-2">
@@ -188,6 +202,26 @@ export function NewRecord() {
               value={motivoConciliacion}
               onChange={(e) => setMotivoConciliacion(e.target.value)}
               required
+            />
+          </div>
+
+          <div className="form-field span-2">
+            <label htmlFor="materiales">Materiales a conciliar</label>
+            <textarea
+              id="materiales"
+              value={materialesAConciliar}
+              onChange={(e) => setMaterialesAConciliar(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-field span-2">
+            <label htmlFor="regulatorios">Asuntos regulatorios</label>
+            <textarea
+              id="regulatorios"
+              value={asuntosRegulatorios}
+              onChange={(e) => setAsuntosRegulatorios(e.target.value)}
+              placeholder="Opcional: observaciones o requisitos regulatorios asociados"
             />
           </div>
         </div>

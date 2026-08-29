@@ -84,13 +84,17 @@ export interface ConciliationRecord {
   planta: string;
   fechaConciliacion: string;
   motivoConciliacion: string;
+  materialesAConciliar: string;
+  asuntosRegulatorios?: string | null;
   tipoFlujo: TipoFlujo | null;
   estado: EstadoRegistro;
   createdAt: string;
   updatedAt: string;
+  creadoPorId?: string;
   creadoPor?: { nombre: string; email?: string };
   lotes?: RecordLote[];
   respuestaTecnica?: TechnicalResponse | null;
   destinatarios?: EmailRecipient[];
   historial?: StatusHistoryEntry[];
+  emailEstado?: "ENVIADO" | "FALLIDO";
 }

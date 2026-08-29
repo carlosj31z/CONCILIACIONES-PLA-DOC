@@ -622,3 +622,96 @@ a {
   color: var(--color-text-muted);
   margin: 0 0 24px;
 }
+
+/* --- Vista de celular --- */
+@media (max-width: 760px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 8px;
+  }
+
+  .sidebar-brand {
+    margin-bottom: 0;
+    font-size: 14px;
+  }
+
+  .sidebar-subtitle {
+    display: none;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    order: 3;
+    width: 100%;
+  }
+
+  .sidebar-nav a {
+    padding: 6px 10px;
+    margin-bottom: 0;
+  }
+
+  .sidebar-nav .nav-divider {
+    display: none;
+  }
+
+  .sidebar-user {
+    margin-top: 0;
+    margin-left: auto;
+    border-top: none;
+    padding-top: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .sidebar-user .role {
+    margin-top: 0;
+  }
+
+  .sidebar-user button {
+    margin-top: 0;
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .main {
+    padding: 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-grid,
+  .route-options,
+  .panel-grid,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filters {
+    flex-direction: column;
+  }
+
+  .filters input,
+  .filters select {
+    width: 100%;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 360px;
+  }
+}

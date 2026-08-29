@@ -65,12 +65,14 @@ model User {
 // Corresponde a una fila del Excel histórico (Cod. Pro., Producto, Planta,
 // Fecha de Conciliación, Motivo de Conciliación) + el flujo de estados nuevo.
 model ConciliationRecord {
-  id                 String   @id @default(cuid())
-  codigoProducto     String? // "Cod. Pro." - opcional: el histórico trae vacíos y "-"
-  producto           String
-  planta             String // Ej. "1 YT", "2 MC" (código de planta/línea)
-  fechaConciliacion  DateTime
-  motivoConciliacion String
+  id                   String   @id @default(cuid())
+  codigoProducto       String? // "Cod. Pro." - opcional: el histórico trae vacíos y "-"
+  producto             String
+  planta               String // "1" o "2"
+  fechaConciliacion    DateTime
+  motivoConciliacion   String
+  materialesAConciliar String
+  asuntosRegulatorios  String?
 
   tipoFlujo TipoFlujo? // se define recién cuando Planeamiento toma la decisión
   estado    EstadoRegistro @default(PENDIENTE_PLANEAMIENTO)

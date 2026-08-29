@@ -5,11 +5,14 @@ import { HttpError } from "../middleware/errorHandler";
 import { encolarCorreo, normalizarDestinatarios } from "../services/email.service";
 import { enviarCorreoInmediato } from "../services/email.worker";
 import {
+  actualizarRegistroSchema,
   actualizarTecnicaSchema,
   completarTecnicaSchema,
   crearRegistroSchema,
   decisionSchema,
 } from "../utils/validators";
+
+const ESTADOS_EDITABLES = ["PENDIENTE_PLANEAMIENTO", "EN_REVISION_TECNICA"] as const;
 
 /**
  * Rol Planeamiento: crea el registro con los datos base del requerimiento.
@@ -28,8 +31,9 @@ export async function crearRegistro(req: Request, res: Response) {
         planta: data.planta,
         fechaConciliacion: data.fechaConciliacion,
         motivoConciliacion: data.motivoConciliacion,
+        materialesAConciliar: data.materialesAConciliar,
+        asuntosRegulatorios: data.asuntosRegulatorios || null,
         creadoPorId: userId,
-        lotes: { create: data.lotes.map((numeroLote) => ({ numeroLote })) },
       },
     });
 
@@ -100,7 +104,53 @@ export async function decidirRuta(req: Request, res: Response) {
     return { record: actualizado, emailLogId: emailLog.id };
   });
 
-  await enviarCorreoInmediato(emailLogId);
+  const enviado = await enviarCorreoInmediato(emailLogId);
+
+  res.json({ ...record, emailEstado: enviado ? "ENVIADO" : "FALLIDO" });
+}
+
+/**
+ * Rol Planeamiento (dueño del registro) o ADMIN: corrige los datos base
+ * mientras el requerimiento sigue en curso (aún no se cerró con una receta
+ * generada o una actualización completada). Deja rastro en el historial.
+ */
+export async function actualizarRegistro(req: Request, res: Response) {
+  const { id } = req.params;
+  const data = actualizarRegistroSchema.parse(req.body);
+  const userId = req.user!.id;
+
+  const existente = await prisma.conciliationRecord.findUnique({ where: { id } });
+  if (!existente) throw new HttpError(404, "Registro no encontrado");
+
+  if (existente.creadoPorId !== userId && req.user!.role !== "ADMIN") {
+    throw new HttpError(403, "Solo quien creó el requerimiento puede editarlo");
+  }
+  if (!ESTADOS_EDITABLES.includes(existente.estado as (typeof ESTADOS_EDITABLES)[number])) {
+    throw new HttpError(409, "Este registro ya fue cerrado y no se puede editar");
+  }
+
+  const record = await prisma.$transaction(async (tx) => {
+    const actualizado = await tx.conciliationRecord.update({
+      where: { id },
+      data: {
+        ...data,
+        codigoProducto: data.codigoProducto !== undefined ? data.codigoProducto || null : undefined,
+        asuntosRegulatorios: data.asuntosRegulatorios !== undefined ? data.asuntosRegulatorios || null : undefined,
+      },
+    });
+
+    await tx.statusHistory.create({
+      data: {
+        recordId: id,
+        estadoDesde: existente.estado,
+        estadoHasta: existente.estado,
+        comentario: "Datos del requerimiento editados por Planeamiento",
+        cambiadoPorId: userId,
+      },
+    });
+
+    return actualizado;
+  });
 
   res.json(record);
 }
@@ -181,9 +231,9 @@ export async function completarTarea(req: Request, res: Response) {
     return { record: actualizado, emailLogId: emailLog.id };
   });
 
-  await enviarCorreoInmediato(emailLogId);
+  const enviado = await enviarCorreoInmediato(emailLogId);
 
-  res.json(record);
+  res.json({ ...record, emailEstado: enviado ? "ENVIADO" : "FALLIDO" });
 }
 
 export async function listarRegistros(req: Request, res: Response) {
