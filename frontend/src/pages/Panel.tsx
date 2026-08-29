@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import { FlowDiagram } from "../components/FlowDiagram";
 import { ESTADO_LABELS, type ConciliationRecord, type EstadoRegistro } from "../types";
 
 const TONE: Record<EstadoRegistro, string> = {
@@ -84,13 +83,6 @@ export function Panel() {
             <span className="label">{ESTADO_LABELS[estado]}</span>
           </div>
         ))}
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginTop: 0, fontSize: 14, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-          Cómo funciona el proceso
-        </h3>
-        <FlowDiagram />
       </div>
 
       <div className="panel-grid">

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import { EmailTagInput } from "../components/EmailTagInput";
+import { RecordFlowStatus } from "../components/RecordFlowStatus";
 import { useAuth } from "../context/AuthContext";
 import { ESTADO_LABELS, TIPO_FLUJO_LABELS, type ConciliationRecord, type DirectoryUser } from "../types";
 
@@ -52,6 +53,7 @@ export function RecordDetail() {
   const [decidiendo, setDecidiendo] = useState(false);
 
   const [borrando, setBorrando] = useState(false);
+  const [verFlujo, setVerFlujo] = useState(false);
 
   function cargarDatosEdicion(r: ConciliationRecord) {
     setCodigoProducto(r.codigoProducto ?? "");
@@ -239,6 +241,9 @@ export function RecordDetail() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <StatusBadge estado={record.estado} />
+          <button className="btn btn-secondary" onClick={() => setVerFlujo((v) => !v)}>
+            {verFlujo ? "Ocultar flujo" : "Ver flujo"}
+          </button>
           {puedeBorrar && (
             <button className="btn btn-danger-ghost" onClick={borrar} disabled={borrando}>
               {borrando ? "Borrando…" : "Borrar"}
@@ -246,6 +251,12 @@ export function RecordDetail() {
           )}
         </div>
       </div>
+
+      {verFlujo && (
+        <div className="card flow-status-card">
+          <RecordFlowStatus record={record} />
+        </div>
+      )}
 
       <div className="detail-grid">
         <div>

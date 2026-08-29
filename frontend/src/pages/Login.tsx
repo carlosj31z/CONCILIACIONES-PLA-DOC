@@ -31,11 +31,10 @@ export function Login() {
           RC
         </div>
         <h1>Recetas de Conciliación</h1>
-        <p>Reemplaza el cuadro de conciliaciones en Excel: un flujo claro entre Planeamiento y Documentación Técnica, con estado y trazabilidad en cada paso.</p>
+        <p>Un flujo claro entre Planeamiento y Documentación Técnica, con estado y trazabilidad en cada paso.</p>
         <div className="login-roles">
           <span className="login-role-pill">Planeamiento</span>
           <span className="login-role-pill">Documentación Técnica</span>
-          <span className="login-role-pill">Administración</span>
         </div>
       </div>
 

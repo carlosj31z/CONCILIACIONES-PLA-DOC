@@ -19,9 +19,11 @@
   --estado-receta: #22c55e;
   --estado-actualizacion: #14b8a6;
 
-  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --duration-fast: 140ms;
-  --duration-base: 260ms;
+  --duration-base: 220ms;
 
   font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
   color-scheme: dark;
@@ -578,7 +580,18 @@ a {
 .data-table tbody tr {
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-standard);
+  animation: fade-in-up 200ms var(--ease-out) both;
 }
+
+.data-table tbody tr:nth-child(1) { animation-delay: 0ms; }
+.data-table tbody tr:nth-child(2) { animation-delay: 20ms; }
+.data-table tbody tr:nth-child(3) { animation-delay: 40ms; }
+.data-table tbody tr:nth-child(4) { animation-delay: 60ms; }
+.data-table tbody tr:nth-child(5) { animation-delay: 80ms; }
+.data-table tbody tr:nth-child(6) { animation-delay: 100ms; }
+.data-table tbody tr:nth-child(7) { animation-delay: 120ms; }
+.data-table tbody tr:nth-child(8) { animation-delay: 140ms; }
+.data-table tbody tr:nth-child(n+9) { animation-delay: 160ms; }
 
 .data-table tbody tr:hover {
   background: var(--color-surface-hover);
@@ -753,123 +766,102 @@ a {
   white-space: pre-wrap;
 }
 
-/* --- Diagrama de flujo (Panel) --- */
-.flow-diagram {
+/* --- Estado de flujo por registro (RecordDetail) --- */
+.flow-status-card {
+  margin-bottom: 20px;
+  padding: 24px 28px 8px;
+  animation: fade-in-up var(--duration-base) var(--ease-out) both;
+}
+
+.flow-status {
+  display: flex;
+  align-items: flex-start;
+}
+
+.flow-status-step {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding-top: 8px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
 }
 
-.flow-row {
-  display: flex;
-  align-items: stretch;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.flow-step-group {
+.flow-status-track {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 200px;
-  animation: fade-in-up var(--duration-base) var(--ease-standard) both;
+  width: 100%;
 }
 
-.flow-card {
+.flow-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-border);
+  flex-shrink: 0;
+  margin: 0 auto;
   position: relative;
+  transition: background var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+}
+
+.flow-status-line {
   flex: 1;
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-elevated);
-  padding: 14px 16px 14px 40px;
+  height: 2px;
+  background: var(--color-border);
+  transition: background var(--duration-base) var(--ease-out);
+}
+
+.flow-status-label {
+  margin-top: 10px;
   font-size: 12px;
   color: var(--color-text-muted);
-  min-width: 0;
+  line-height: 1.3;
+  padding: 0 6px 16px;
 }
 
-.flow-card strong {
-  display: block;
+.flow-status-step--done .flow-status-dot {
+  background: var(--color-primary);
+}
+
+.flow-status-step--done .flow-status-line {
+  background: var(--color-primary);
+}
+
+.flow-status-step--done .flow-status-label {
   color: var(--color-text);
-  font-size: 13px;
-  margin-bottom: 3px;
 }
 
-.flow-card p {
-  margin: 0;
-  line-height: 1.4;
+.flow-status-step--current .flow-status-dot {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--color-primary-soft);
+  animation: flow-pulse 2.2s var(--ease-in-out) infinite;
 }
 
-.flow-step-number {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  background: var(--color-primary-soft);
-  color: #a7c6ff;
-  font-size: 11px;
+.flow-status-step--current .flow-status-label {
+  color: var(--color-text);
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.flow-tone-pendiente { border-color: rgba(245, 158, 11, 0.35); }
-.flow-tone-revision { border-color: rgba(79, 140, 255, 0.35); }
-.flow-tone-receta { border-color: rgba(34, 197, 94, 0.35); }
-.flow-tone-rechazada { border-color: rgba(248, 113, 113, 0.35); }
-.flow-tone-concluida { border-color: rgba(163, 230, 53, 0.35); }
-
-.flow-arrow {
-  width: 20px;
-  height: 20px;
-  color: var(--color-text-muted);
-  flex-shrink: 0;
-}
-
-.flow-branches {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: start;
-  gap: 16px;
-  position: relative;
-  animation: fade-in-up var(--duration-base) var(--ease-standard) both;
-}
-
-.flow-branch-connector {
-  position: absolute;
-  top: -16px;
-  left: 50%;
-  width: 1px;
-  height: 16px;
+.flow-status-step--upcoming .flow-status-dot {
   background: var(--color-border);
 }
 
-.flow-branch-card p {
-  margin: 0;
+.flow-status-rechazada .flow-status-step--current .flow-status-dot {
+  background: var(--color-danger);
+  box-shadow: 0 0 0 4px var(--color-danger-soft);
 }
 
-.flow-branch-loop {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.flow-status-rechazada .flow-status-step--current .flow-status-label {
+  color: var(--color-danger);
 }
 
-.flow-loop-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-left: 4px;
-}
-
-.flow-loop-arrow {
-  width: 36px;
-  height: 22px;
-  color: var(--color-text-muted);
-  flex-shrink: 0;
+@keyframes flow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px var(--color-primary-soft);
+  }
+  50% {
+    box-shadow: 0 0 0 7px var(--color-primary-soft);
+  }
 }
 
 .lote-chip {
@@ -969,8 +961,8 @@ a {
   border-radius: 16px;
   padding: 32px;
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55);
-  animation: fade-in-up 420ms var(--ease-standard) both;
-  animation-delay: 80ms;
+  animation: fade-in-up 320ms var(--ease-out) both;
+  animation-delay: 60ms;
 }
 
 .login-card h2 {
