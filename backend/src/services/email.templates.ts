@@ -11,7 +11,7 @@ const wrapper = (title: string, bodyHtml: string) => `
           <table role="presentation" width="560" style="background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e4e7eb;">
             <tr>
               <td style="background:#0b3d91;padding:20px 28px;">
-                <span style="color:#ffffff;font-size:16px;font-weight:600;">Recetas de Conciliación</span>
+                <span style="color:#ffffff;font-size:16px;font-weight:600;">Conciliaciones</span>
               </td>
             </tr>
             <tr>
@@ -22,7 +22,7 @@ const wrapper = (title: string, bodyHtml: string) => `
             </tr>
             <tr>
               <td style="padding:16px 28px;background:#f8f9fb;border-top:1px solid #e4e7eb;">
-                <span style="font-size:12px;color:#8792a2;">Correo automático, no responder. Generado por el sistema de Recetas de Conciliación.</span>
+                <span style="font-size:12px;color:#8792a2;">Correo automático, no responder. Generado por el sistema de Conciliaciones.</span>
               </td>
             </tr>
           </table>

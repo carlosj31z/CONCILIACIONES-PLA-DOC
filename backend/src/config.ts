@@ -24,7 +24,7 @@ export const config = {
     secure: process.env.SMTP_SECURE === "true",
     user: process.env.SMTP_USER ?? "",
     password: process.env.SMTP_PASSWORD ?? "",
-    from: process.env.MAIL_FROM ?? "Recetas de Conciliación <no-reply@example.com>",
+    from: process.env.MAIL_FROM ?? "Conciliaciones <no-reply@example.com>",
   },
 
   emailWorkerIntervalMs: Number(process.env.EMAIL_WORKER_INTERVAL_MS ?? 5000),

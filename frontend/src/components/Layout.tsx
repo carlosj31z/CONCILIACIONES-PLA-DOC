@@ -96,7 +96,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <img src={humanovaMark} alt="Humanova" className="brand-mark" />
-          <span className="sidebar-brand-text">Recetas de Conciliación</span>
+          <span className="sidebar-brand-text">Conciliaciones</span>
         </div>
         <div className="sidebar-subtitle">Planeamiento · Documentación Técnica</div>
 

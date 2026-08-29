@@ -52,7 +52,7 @@ export function Login() {
 
       <div className="login-brand-header">
         <img src={humanovaMark} alt="Humanova" className="login-mark" />
-        <h1>Recetas de Conciliación</h1>
+        <h1>Conciliaciones</h1>
       </div>
 
       <div className="login-form-panel">
