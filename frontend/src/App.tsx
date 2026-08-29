@@ -6,6 +6,7 @@ import { Seguimiento } from "./pages/Seguimiento";
 import { Panel } from "./pages/Panel";
 import { NewRecord } from "./pages/NewRecord";
 import { RecordDetail } from "./pages/RecordDetail";
+import { Usuarios } from "./pages/Usuarios";
 
 function PrivateArea() {
   const { user, loading } = useAuth();
@@ -20,6 +21,7 @@ function PrivateArea() {
         <Route path="/panel" element={<Panel />} />
         <Route path="/registros/nuevo" element={<NewRecord />} />
         <Route path="/registros/:id" element={<RecordDetail />} />
+        <Route path="/usuarios" element={user.role === "ADMIN" ? <Usuarios /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

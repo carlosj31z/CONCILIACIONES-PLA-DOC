@@ -54,6 +54,14 @@ npm run dev    # http://localhost:5173 (proxy /api -> localhost:4000)
 
 Abre `http://localhost:5173`, ingresa con cualquiera de los usuarios de prueba.
 
+### Administrar usuarios
+
+El usuario `admin@empresa.com` (rol `ADMIN`) ve una pestaña **Usuarios** en el menú
+lateral, no visible para los demás roles: ahí puede crear cuentas nuevas, cambiar el
+rol de cualquiera, activar/desactivar accesos y restablecer contraseñas — sin tocar la
+base de datos directamente. Un admin no puede desactivarse ni cambiarse el rol a sí
+mismo (para no quedarse sin acceso por accidente).
+
 ## Despliegue en Vercel
 
 La app se despliega como **un solo proyecto de Vercel**: el frontend se sirve como

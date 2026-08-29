@@ -1,12 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-const ROLE_LABEL: Record<string, string> = {
-  PLANEAMIENTO: "Planeamiento",
-  DOC_TECNICA: "Documentación Técnica",
-  ADMIN: "Administrador",
-};
+import { ROLE_LABELS } from "../types";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : undefined);
 
@@ -37,11 +32,19 @@ export function Layout({ children }: { children: ReactNode }) {
               </NavLink>
             </>
           )}
+          {user?.role === "ADMIN" && (
+            <>
+              <div className="nav-divider" />
+              <NavLink to="/usuarios" className={navLinkClass}>
+                Usuarios
+              </NavLink>
+            </>
+          )}
         </nav>
 
         <div className="sidebar-user">
           <div>{user?.nombre}</div>
-          <span className="role">{user ? ROLE_LABEL[user.role] : ""}</span>
+          <span className="role">{user ? ROLE_LABELS[user.role] : ""}</span>
           <button onClick={logout}>Cerrar sesión</button>
         </div>
       </aside>

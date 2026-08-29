@@ -5,6 +5,7 @@ import { errorHandler } from "./middleware/errorHandler";
 import { authRouter } from "./routes/auth.routes";
 import { recordsRouter } from "./routes/records.routes";
 import { cronRouter } from "./routes/cron.routes";
+import { usersRouter } from "./routes/users.routes";
 
 export const app = express();
 
@@ -19,5 +20,6 @@ app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRouter);
 app.use("/api/records", recordsRouter);
 app.use("/api/cron", cronRouter);
+app.use("/api/users", usersRouter);
 
 app.use(errorHandler);

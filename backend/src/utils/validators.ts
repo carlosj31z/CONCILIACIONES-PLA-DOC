@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TipoFlujo } from "@prisma/client";
+import { Role, TipoFlujo } from "@prisma/client";
 
 export const crearRegistroSchema = z.object({
   codigoProducto: z.string().trim().max(50).optional(),
@@ -31,4 +31,18 @@ export const actualizarTecnicaSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+});
+
+export const crearUsuarioSchema = z.object({
+  nombre: z.string().trim().min(2, "El nombre es requerido"),
+  email: z.string().trim().email("Correo inválido"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+  role: z.nativeEnum(Role),
+});
+
+export const actualizarUsuarioSchema = z.object({
+  nombre: z.string().trim().min(2).optional(),
+  role: z.nativeEnum(Role).optional(),
+  activo: z.boolean().optional(),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").optional(),
 });

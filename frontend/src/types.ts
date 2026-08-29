@@ -31,6 +31,21 @@ export interface AuthUser {
   role: Role;
 }
 
+export const ROLE_LABELS: Record<Role, string> = {
+  PLANEAMIENTO: "Planeamiento",
+  DOC_TECNICA: "Documentación Técnica",
+  ADMIN: "Administrador",
+};
+
+export interface ManagedUser {
+  id: string;
+  nombre: string;
+  email: string;
+  role: Role;
+  activo: boolean;
+  createdAt: string;
+}
+
 export interface RecordLote {
   id: string;
   numeroLote: string;
