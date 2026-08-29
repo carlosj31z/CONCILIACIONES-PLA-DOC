@@ -2,7 +2,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
-import { Dashboard } from "./pages/Dashboard";
+import { Seguimiento } from "./pages/Seguimiento";
+import { Panel } from "./pages/Panel";
 import { NewRecord } from "./pages/NewRecord";
 import { RecordDetail } from "./pages/RecordDetail";
 
@@ -15,7 +16,8 @@ function PrivateArea() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<Seguimiento />} />
+        <Route path="/panel" element={<Panel />} />
         <Route path="/registros/nuevo" element={<NewRecord />} />
         <Route path="/registros/:id" element={<RecordDetail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
