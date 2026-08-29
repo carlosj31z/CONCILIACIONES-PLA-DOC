@@ -9,14 +9,18 @@ export const ESTADOS_REGISTRO = [
   "EN_REVISION_TECNICA",
   "RECETA_GENERADA",
   "ACTUALIZACION_COMPLETADA",
+  "RECHAZADA_TECNICA",
+  "CONCLUIDA",
 ] as const;
 export type EstadoRegistro = (typeof ESTADOS_REGISTRO)[number];
 
 export const ESTADO_LABELS: Record<EstadoRegistro, string> = {
   PENDIENTE_PLANEAMIENTO: "Pendiente de Planeamiento",
-  EN_REVISION_TECNICA: "En Revisión Técnica",
+  EN_REVISION_TECNICA: "En Revisión por Documentación Técnica",
   RECETA_GENERADA: "Receta Generada",
   ACTUALIZACION_COMPLETADA: "Actualización Completada",
+  RECHAZADA_TECNICA: "Rechazada por Documentación Técnica",
+  CONCLUIDA: "Concluida",
 };
 
 export const TIPO_FLUJO_LABELS: Record<TipoFlujo, string> = {
@@ -58,8 +62,16 @@ export interface TechnicalResponse {
   variantes?: string | null;
   ejecucion?: string | null;
   observaciones?: string | null;
+  motivoRechazo?: string | null;
   completadoAt?: string | null;
   completadoPor?: { nombre: string } | null;
+}
+
+export interface DirectoryUser {
+  id: string;
+  nombre: string;
+  email: string;
+  role: Role;
 }
 
 export interface EmailRecipient {
@@ -73,6 +85,7 @@ export interface StatusHistoryEntry {
   id: string;
   estadoDesde: EstadoRegistro | null;
   estadoHasta: EstadoRegistro;
+  comentario?: string | null;
   createdAt: string;
   cambiadoPor: { nombre: string };
 }

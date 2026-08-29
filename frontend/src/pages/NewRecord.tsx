@@ -1,15 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { EmailTagInput } from "../components/EmailTagInput";
-import { TIPO_FLUJO_LABELS, TIPOS_FLUJO, type ConciliationRecord, type TipoFlujo } from "../types";
-
-const CORREOS_FRECUENTES = [
-  "doctecnica@empresa.com",
-  "calidad@empresa.com",
-  "almacen@empresa.com",
-  "regulatorios@empresa.com",
-];
+import { TIPO_FLUJO_LABELS, TIPOS_FLUJO, type ConciliationRecord, type DirectoryUser, type TipoFlujo } from "../types";
 
 function hoyISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -31,7 +24,23 @@ export function NewRecord() {
   const [record, setRecord] = useState<ConciliationRecord | null>(null);
   const [tipoFlujo, setTipoFlujo] = useState<TipoFlujo | null>(null);
   const [destinatarios, setDestinatarios] = useState<string[]>([]);
+  const [directorio, setDirectorio] = useState<DirectoryUser[]>([]);
   const [emailFallido, setEmailFallido] = useState(false);
+
+  useEffect(() => {
+    if (!record) return;
+    api
+      .get<DirectoryUser[]>("/users/directorio")
+      .then((usuarios) => {
+        setDirectorio(usuarios);
+        const docTecnica = usuarios.filter((u) => u.role === "DOC_TECNICA").map((u) => u.email);
+        setDestinatarios(docTecnica);
+      })
+      .catch(() => {
+        // El directorio es una comodidad (prellenar); si falla, el usuario igual puede escribir los correos a mano.
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.id]);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -136,10 +145,12 @@ export function NewRecord() {
             <EmailTagInput
               value={destinatarios}
               onChange={setDestinatarios}
-              suggestions={CORREOS_FRECUENTES}
+              suggestions={directorio.map((u) => u.email)}
               placeholder="Escribe un correo y presiona Enter…"
             />
-            <span className="hint">Recibirán el aviso de nuevo requerimiento en su bandeja de correo.</span>
+            <span className="hint">
+              Se prellenó con todo el equipo de Documentación Técnica; quita a quien no corresponda notificar.
+            </span>
           </div>
 
           {error && <div className="form-error">{error}</div>}

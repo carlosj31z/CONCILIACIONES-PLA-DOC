@@ -32,13 +32,17 @@ enum TipoFlujo {
 enum EstadoRegistro {
   PENDIENTE_PLANEAMIENTO // Creado por Planeamiento, datos base en edición
   EN_REVISION_TECNICA // Planeamiento definió la ruta y notificó a Doc. Técnica
-  RECETA_GENERADA // Doc. Técnica completó la ruta "Generar receta"
-  ACTUALIZACION_COMPLETADA // Doc. Técnica completó la ruta "Actualizar sin conciliación"
+  RECETA_GENERADA // Doc. Técnica completó la ruta "Generar receta", pendiente de que Planeamiento la concluya
+  ACTUALIZACION_COMPLETADA // Doc. Técnica completó la ruta "Actualizar sin conciliación", pendiente de que Planeamiento la concluya
+  RECHAZADA_TECNICA // Doc. Técnica indicó que no pudo generar la receta, con motivo
+  CONCLUIDA // Planeamiento dio por buena la receta/actualización: cierre final
 }
 
 enum TriggerCorreo {
   NUEVO_REQUERIMIENTO // Trigger 1: Planeamiento guarda datos base y elige ruta
   RECETA_LISTA // Trigger 2: Documentación Técnica completa su tarea
+  RECHAZO_TECNICO // Documentación Técnica no pudo generar la receta
+  DECISION_PLANEAMIENTO // Planeamiento concluye o rechaza el trabajo de Documentación Técnica
 }
 
 enum EstadoEnvioCorreo {
@@ -114,6 +118,7 @@ model TechnicalResponse {
   variantes     String?
   ejecucion     String?
   observaciones String?
+  motivoRechazo String? // Por qué Documentación Técnica no pudo generar la receta (estado RECHAZADA_TECNICA)
 
   completadoPorId String?
   completadoPor   User?     @relation("CompletadoPor", fields: [completadoPorId], references: [id])

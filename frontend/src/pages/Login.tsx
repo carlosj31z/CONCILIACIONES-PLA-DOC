@@ -26,28 +26,44 @@ export function Login() {
 
   return (
     <div className="login-page">
-      <form className="login-card" onSubmit={handleSubmit}>
-        <h1>Recetas de Conciliación</h1>
-        <p>Ingresa con tu correo de Planeamiento o Documentación Técnica.</p>
-
-        <div className="form-field">
-          <label htmlFor="email">Correo</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoFocus
-            required
-          />
+      <div className="login-brand">
+        <div className="login-mark" aria-hidden="true">
+          RC
         </div>
+        <h1>Recetas de Conciliación</h1>
+        <p>Reemplaza el cuadro de conciliaciones en Excel: un flujo claro entre Planeamiento y Documentación Técnica, con estado y trazabilidad en cada paso.</p>
+        <div className="login-roles">
+          <span className="login-role-pill">Planeamiento</span>
+          <span className="login-role-pill">Documentación Técnica</span>
+          <span className="login-role-pill">Administración</span>
+        </div>
+      </div>
 
-        {error && <div className="form-error">{error}</div>}
+      <div className="login-form-panel">
+        <form className="login-card" onSubmit={handleSubmit}>
+          <h2>Ingresar</h2>
+          <p>Escribe tu correo institucional. No necesitas contraseña.</p>
 
-        <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: "100%", justifyContent: "center" }}>
-          {loading ? "Ingresando…" : "Ingresar"}
-        </button>
-      </form>
+          <div className="form-field">
+            <label htmlFor="email">Correo</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="nombre@humanovalab.com"
+              autoFocus
+              required
+            />
+          </div>
+
+          {error && <div className="form-error">{error}</div>}
+
+          <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: "100%", justifyContent: "center" }}>
+            {loading ? "Ingresando…" : "Ingresar"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

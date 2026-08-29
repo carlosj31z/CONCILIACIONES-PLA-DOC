@@ -19,7 +19,10 @@ function PrivateArea() {
       <Routes>
         <Route path="/" element={<Seguimiento />} />
         <Route path="/panel" element={<Panel />} />
-        <Route path="/registros/nuevo" element={<NewRecord />} />
+        <Route
+          path="/registros/nuevo"
+          element={user.role === "PLANEAMIENTO" || user.role === "ADMIN" ? <NewRecord /> : <Navigate to="/" replace />}
+        />
         <Route path="/registros/:id" element={<RecordDetail />} />
         <Route path="/usuarios" element={user.role === "ADMIN" ? <Usuarios /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -10,9 +10,27 @@ import {
   completarTecnicaSchema,
   crearRegistroSchema,
   decisionSchema,
+  rechazarPlaneamientoSchema,
+  rechazarTecnicaSchema,
 } from "../utils/validators";
 
 const ESTADOS_EDITABLES = ["PENDIENTE_PLANEAMIENTO", "EN_REVISION_TECNICA"] as const;
+const ESTADOS_ELIMINABLES = [
+  "PENDIENTE_PLANEAMIENTO",
+  "EN_REVISION_TECNICA",
+  "RECHAZADA_TECNICA",
+  "RECETA_GENERADA",
+  "ACTUALIZACION_COMPLETADA",
+] as const;
+const ESTADOS_PENDIENTES_DECISION = ["RECETA_GENERADA", "ACTUALIZACION_COMPLETADA"] as const;
+
+async function destinatariosOriginales(recordId: string): Promise<string[]> {
+  const filas = await prisma.emailRecipient.findMany({
+    where: { recordId, trigger: "NUEVO_REQUERIMIENTO" },
+    select: { email: true },
+  });
+  return Array.from(new Set(filas.map((f) => f.email)));
+}
 
 /**
  * Rol Planeamiento: crea el registro con los datos base del requerimiento.
@@ -234,6 +252,182 @@ export async function completarTarea(req: Request, res: Response) {
   const enviado = await enviarCorreoInmediato(emailLogId);
 
   res.json({ ...record, emailEstado: enviado ? "ENVIADO" : "FALLIDO" });
+}
+
+/**
+ * Rol Documentación Técnica: en vez de completar la tarea, indica que no fue
+ * posible generar la receta (o la actualización) y por qué. Cierra el
+ * registro en RECHAZADA_TECNICA y avisa a quien lo creó.
+ */
+export async function rechazarTecnica(req: Request, res: Response) {
+  const { id } = req.params;
+  const { motivo } = rechazarTecnicaSchema.parse(req.body);
+  const userId = req.user!.id;
+
+  const existente = await prisma.conciliationRecord.findUnique({
+    where: { id },
+    include: { creadoPor: { select: { email: true } } },
+  });
+  if (!existente) throw new HttpError(404, "Registro no encontrado");
+  if (existente.estado !== "EN_REVISION_TECNICA") {
+    throw new HttpError(409, "El registro no está en revisión técnica");
+  }
+
+  const { record, emailLogId } = await prisma.$transaction(async (tx) => {
+    await tx.technicalResponse.upsert({
+      where: { recordId: id },
+      create: { recordId: id, motivoRechazo: motivo, completadoPorId: userId, completadoAt: new Date() },
+      update: { motivoRechazo: motivo, completadoPorId: userId, completadoAt: new Date() },
+    });
+
+    const actualizado = await tx.conciliationRecord.update({
+      where: { id },
+      data: { estado: "RECHAZADA_TECNICA" },
+    });
+
+    await tx.statusHistory.create({
+      data: {
+        recordId: id,
+        estadoDesde: "EN_REVISION_TECNICA",
+        estadoHasta: "RECHAZADA_TECNICA",
+        comentario: motivo,
+        cambiadoPorId: userId,
+      },
+    });
+
+    const emailLog = await encolarCorreo({
+      record: actualizado,
+      trigger: "RECHAZO_TECNICO",
+      destinatarios: [existente.creadoPor.email],
+      motivo,
+      tx,
+    });
+
+    return { record: actualizado, emailLogId: emailLog.id };
+  });
+
+  const enviado = await enviarCorreoInmediato(emailLogId);
+  res.json({ ...record, emailEstado: enviado ? "ENVIADO" : "FALLIDO" });
+}
+
+/**
+ * Rol Planeamiento (dueño) o ADMIN: da por buena la receta/actualización que
+ * entregó Documentación Técnica. Cierre final del requerimiento.
+ */
+export async function concluirRegistro(req: Request, res: Response) {
+  const { id } = req.params;
+  const userId = req.user!.id;
+
+  const existente = await prisma.conciliationRecord.findUnique({ where: { id } });
+  if (!existente) throw new HttpError(404, "Registro no encontrado");
+  if (existente.creadoPorId !== userId && req.user!.role !== "ADMIN") {
+    throw new HttpError(403, "Solo quien creó el requerimiento puede concluirlo");
+  }
+  if (!ESTADOS_PENDIENTES_DECISION.includes(existente.estado as (typeof ESTADOS_PENDIENTES_DECISION)[number])) {
+    throw new HttpError(409, "Este registro no está esperando la conclusión de Planeamiento");
+  }
+
+  const destinatarios = await destinatariosOriginales(id);
+
+  const { record, emailLogId } = await prisma.$transaction(async (tx) => {
+    const actualizado = await tx.conciliationRecord.update({ where: { id }, data: { estado: "CONCLUIDA" } });
+
+    await tx.statusHistory.create({
+      data: {
+        recordId: id,
+        estadoDesde: existente.estado,
+        estadoHasta: "CONCLUIDA",
+        cambiadoPorId: userId,
+      },
+    });
+
+    const emailLog = await encolarCorreo({
+      record: actualizado,
+      trigger: "DECISION_PLANEAMIENTO",
+      destinatarios,
+      aprobado: true,
+      tx,
+    });
+
+    return { record: actualizado, emailLogId: emailLog.id };
+  });
+
+  const enviado = destinatarios.length > 0 ? await enviarCorreoInmediato(emailLogId) : true;
+  res.json({ ...record, emailEstado: enviado ? "ENVIADO" : "FALLIDO" });
+}
+
+/**
+ * Rol Planeamiento (dueño) o ADMIN: rechaza la receta/actualización
+ * entregada y la devuelve a Documentación Técnica con un motivo, para que la
+ * rehaga (vuelve a EN_REVISION_TECNICA).
+ */
+export async function rechazarPlaneamiento(req: Request, res: Response) {
+  const { id } = req.params;
+  const { motivo } = rechazarPlaneamientoSchema.parse(req.body);
+  const userId = req.user!.id;
+
+  const existente = await prisma.conciliationRecord.findUnique({ where: { id } });
+  if (!existente) throw new HttpError(404, "Registro no encontrado");
+  if (existente.creadoPorId !== userId && req.user!.role !== "ADMIN") {
+    throw new HttpError(403, "Solo quien creó el requerimiento puede rechazarlo");
+  }
+  if (!ESTADOS_PENDIENTES_DECISION.includes(existente.estado as (typeof ESTADOS_PENDIENTES_DECISION)[number])) {
+    throw new HttpError(409, "Este registro no está esperando la conclusión de Planeamiento");
+  }
+
+  const destinatarios = await destinatariosOriginales(id);
+
+  const { record, emailLogId } = await prisma.$transaction(async (tx) => {
+    const actualizado = await tx.conciliationRecord.update({
+      where: { id },
+      data: { estado: "EN_REVISION_TECNICA" },
+    });
+
+    await tx.statusHistory.create({
+      data: {
+        recordId: id,
+        estadoDesde: existente.estado,
+        estadoHasta: "EN_REVISION_TECNICA",
+        comentario: motivo,
+        cambiadoPorId: userId,
+      },
+    });
+
+    const emailLog = await encolarCorreo({
+      record: actualizado,
+      trigger: "DECISION_PLANEAMIENTO",
+      destinatarios,
+      aprobado: false,
+      motivo,
+      tx,
+    });
+
+    return { record: actualizado, emailLogId: emailLog.id };
+  });
+
+  const enviado = destinatarios.length > 0 ? await enviarCorreoInmediato(emailLogId) : true;
+  res.json({ ...record, emailEstado: enviado ? "ENVIADO" : "FALLIDO" });
+}
+
+/**
+ * Rol Planeamiento (dueño) o ADMIN: elimina un requerimiento que todavía no
+ * se cerró con éxito (CONCLUIDA queda protegida, es el cierre exitoso final).
+ */
+export async function eliminarRegistro(req: Request, res: Response) {
+  const { id } = req.params;
+  const userId = req.user!.id;
+
+  const existente = await prisma.conciliationRecord.findUnique({ where: { id } });
+  if (!existente) throw new HttpError(404, "Registro no encontrado");
+  if (existente.creadoPorId !== userId && req.user!.role !== "ADMIN") {
+    throw new HttpError(403, "Solo quien creó el requerimiento puede borrarlo");
+  }
+  if (!ESTADOS_ELIMINABLES.includes(existente.estado as (typeof ESTADOS_ELIMINABLES)[number])) {
+    throw new HttpError(409, "Un requerimiento ya concluido no se puede borrar");
+  }
+
+  await prisma.conciliationRecord.delete({ where: { id } });
+  res.status(204).send();
 }
 
 export async function listarRegistros(req: Request, res: Response) {

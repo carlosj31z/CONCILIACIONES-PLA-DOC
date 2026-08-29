@@ -33,6 +33,14 @@ export const completarTecnicaSchema = z.object({
   destinatarios: z.array(z.string().trim().min(3)).min(1, "Ingresa al menos un destinatario"),
 });
 
+export const rechazarTecnicaSchema = z.object({
+  motivo: z.string().trim().min(5, "Indica el motivo por el que no se pudo generar la receta"),
+});
+
+export const rechazarPlaneamientoSchema = z.object({
+  motivo: z.string().trim().min(5, "Indica el motivo del rechazo"),
+});
+
 export const actualizarTecnicaSchema = z.object({
   variantes: z.string().trim().optional(),
   ejecucion: z.string().trim().optional(),

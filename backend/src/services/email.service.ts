@@ -1,11 +1,20 @@
 import type { Prisma, ConciliationRecord, TriggerCorreo } from "@prisma/client";
 import { prisma } from "../db";
-import { buildNuevoRequerimientoEmail, buildRecetaListaEmail } from "./email.templates";
+import {
+  buildDecisionPlaneamientoEmail,
+  buildNuevoRequerimientoEmail,
+  buildRecetaListaEmail,
+  buildRechazoTecnicoEmail,
+} from "./email.templates";
 
 interface EncolarCorreoParams {
   record: ConciliationRecord;
   trigger: TriggerCorreo;
   destinatarios: string[];
+  /** Solo para RECHAZO_TECNICO y DECISION_PLANEAMIENTO. */
+  motivo?: string;
+  /** Solo para DECISION_PLANEAMIENTO: true = concluida, false = rechazada. */
+  aprobado?: boolean;
   /** Permite reutilizar una transacción abierta por el controlador que cambia el estado. */
   tx?: Prisma.TransactionClient;
 }
@@ -30,13 +39,22 @@ export function normalizarDestinatarios(emails: string[]): string[] {
 // creada para que el controlador, ya fuera de la transacción, dispare el
 // envío inline (`enviarCorreoInmediato`) sin arriesgar un correo huérfano
 // si la transacción llegara a fallar.
-export async function encolarCorreo({ record, trigger, destinatarios, tx }: EncolarCorreoParams) {
+export async function encolarCorreo({ record, trigger, destinatarios, motivo, aprobado, tx }: EncolarCorreoParams) {
   const db = tx ?? prisma;
 
-  const { subject, html } =
-    trigger === "NUEVO_REQUERIMIENTO"
-      ? buildNuevoRequerimientoEmail(record)
-      : buildRecetaListaEmail(record);
+  const { subject, html } = (() => {
+    switch (trigger) {
+      case "NUEVO_REQUERIMIENTO":
+        return buildNuevoRequerimientoEmail(record);
+      case "RECHAZO_TECNICO":
+        return buildRechazoTecnicoEmail(record, motivo ?? "");
+      case "DECISION_PLANEAMIENTO":
+        return buildDecisionPlaneamientoEmail(record, aprobado ?? true, motivo);
+      case "RECETA_LISTA":
+      default:
+        return buildRecetaListaEmail(record);
+    }
+  })();
 
   await db.emailRecipient.createMany({
     data: destinatarios.map((email) => ({ recordId: record.id, email, trigger })),

@@ -58,6 +58,46 @@ export function buildNuevoRequerimientoEmail(record: ConciliationRecord) {
   return { subject, html };
 }
 
+export function buildRechazoTecnicoEmail(record: ConciliationRecord, motivo: string) {
+  const subject = `No se pudo generar la receta: ${record.producto}`;
+  const html = wrapper(
+    "Documentación Técnica no pudo completar este requerimiento",
+    `
+    ${row("Producto", record.producto)}
+    ${row("Cód. Producto", record.codigoProducto ?? "—")}
+    ${row("Planta", record.planta)}
+    ${row("Motivo", motivo)}
+    <p style="margin:16px 0 0;font-size:14px;">Documentación Técnica indicó que no fue posible completar la receta de conciliación. Revisa el motivo y decide los siguientes pasos.</p>
+    <p style="margin:20px 0 0;">
+      <a href="${link(record.id)}" style="background:#0b3d91;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-size:14px;">Ver registro</a>
+    </p>`
+  );
+  return { subject, html };
+}
+
+export function buildDecisionPlaneamientoEmail(record: ConciliationRecord, aprobado: boolean, motivo?: string) {
+  const subject = aprobado
+    ? `Requerimiento concluido: ${record.producto}`
+    : `Requerimiento devuelto para revisión: ${record.producto}`;
+  const html = wrapper(
+    aprobado ? "Planeamiento concluyó el requerimiento" : "Planeamiento devolvió el requerimiento",
+    `
+    ${row("Producto", record.producto)}
+    ${row("Cód. Producto", record.codigoProducto ?? "—")}
+    ${row("Planta", record.planta)}
+    ${!aprobado && motivo ? row("Motivo del rechazo", motivo) : ""}
+    <p style="margin:16px 0 0;font-size:14px;">${
+      aprobado
+        ? "Planeamiento revisó el trabajo de Documentación Técnica y lo dio por concluido."
+        : "Planeamiento revisó el trabajo entregado y solicita ajustes antes de darlo por concluido."
+    }</p>
+    <p style="margin:20px 0 0;">
+      <a href="${link(record.id)}" style="background:#0b3d91;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-size:14px;">Ver registro</a>
+    </p>`
+  );
+  return { subject, html };
+}
+
 export function buildRecetaListaEmail(record: ConciliationRecord) {
   const esGeneracion = record.tipoFlujo === "GENERAR_RECETA";
   const subject = esGeneracion
