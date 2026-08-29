@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { EmailTagInput } from "../components/EmailTagInput";
+import { Spinner } from "../components/Spinner";
 import { TIPO_FLUJO_LABELS, TIPOS_FLUJO, type ConciliationRecord, type DirectoryUser, type TipoFlujo } from "../types";
 
 function hoyISO(): string {
@@ -157,6 +158,7 @@ export function NewRecord() {
 
           <div className="form-actions">
             <button className="btn btn-primary" type="submit" disabled={!tipoFlujo || destinatarios.length === 0 || loading}>
+              {loading && <Spinner />}
               {loading ? "Enviando…" : "Enviar a Documentación Técnica"}
             </button>
           </div>
@@ -241,6 +243,7 @@ export function NewRecord() {
 
         <div className="form-actions">
           <button className="btn btn-primary" type="submit" disabled={loading}>
+            {loading && <Spinner />}
             {loading ? "Guardando…" : "Guardar y continuar"}
           </button>
         </div>

@@ -12,6 +12,12 @@ function saludoSegunHora(): string {
   return "Buenas noches";
 }
 
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/);
+  const primeras = partes.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "");
+  return primeras.join("") || "?";
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const primerNombre = user?.nombre.split(" ")[0];
@@ -20,7 +26,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="logo-dot" />
+          <span className="brand-mark">RC</span>
           Recetas de Conciliación
         </div>
         <div className="sidebar-subtitle">Planeamiento · Documentación Técnica</div>
@@ -51,8 +57,13 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="sidebar-user">
-          <div>{user?.nombre}</div>
-          <span className="role">{user ? ROLE_LABELS[user.role] : ""}</span>
+          <div className="sidebar-user-row">
+            <span className="user-avatar">{user ? iniciales(user.nombre) : ""}</span>
+            <div>
+              <div className="sidebar-user-name">{user?.nombre}</div>
+              <span className="role">{user ? ROLE_LABELS[user.role] : ""}</span>
+            </div>
+          </div>
           <button onClick={logout}>Cerrar sesión</button>
         </div>
       </aside>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
+import { LoadingState } from "../components/Spinner";
 import { ESTADOS_REGISTRO, ESTADO_LABELS, TIPO_FLUJO_LABELS, type ConciliationRecord } from "../types";
 
 export function Seguimiento() {
@@ -67,7 +68,7 @@ export function Seguimiento() {
 
       <div className="table-wrap">
         {loading ? (
-          <div className="empty-state">Cargando registros…</div>
+          <div className="empty-state"><LoadingState label="Cargando registros…" /></div>
         ) : filtrados.length === 0 ? (
           <div className="empty-state">No hay registros que coincidan con el filtro.</div>
         ) : (

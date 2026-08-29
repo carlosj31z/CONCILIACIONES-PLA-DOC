@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "../api/client";
+import { LoadingState, Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { ROLES, ROLE_LABELS, type ManagedUser, type Role } from "../types";
 
@@ -101,6 +102,7 @@ export function Usuarios() {
 
         <div className="form-actions">
           <button className="btn btn-primary" type="submit" disabled={creando}>
+            {creando && <Spinner />}
             {creando ? "Creando…" : "+ Crear usuario"}
           </button>
         </div>
@@ -108,7 +110,7 @@ export function Usuarios() {
 
       <div className="table-wrap">
         {loading ? (
-          <div className="empty-state">Cargando usuarios…</div>
+          <div className="empty-state"><LoadingState label="Cargando usuarios…" /></div>
         ) : (
           <table className="data-table">
             <thead>

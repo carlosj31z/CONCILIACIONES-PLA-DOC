@@ -4,6 +4,7 @@ import { api, ApiError } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import { EmailTagInput } from "../components/EmailTagInput";
 import { RecordFlowStatus } from "../components/RecordFlowStatus";
+import { LoadingState, Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { ESTADO_LABELS, TIPO_FLUJO_LABELS, type ConciliationRecord, type DirectoryUser } from "../types";
 
@@ -94,7 +95,7 @@ export function RecordDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.estado, directorio]);
 
-  if (loading || !record) return <p>Cargando registro…</p>;
+  if (loading || !record) return <LoadingState label="Cargando registro…" />;
 
   const puedeEditarTecnica = user?.role === "DOC_TECNICA" || user?.role === "ADMIN";
   const enRevision = record.estado === "EN_REVISION_TECNICA";
@@ -246,6 +247,7 @@ export function RecordDetail() {
           </button>
           {puedeBorrar && (
             <button className="btn btn-danger-ghost" onClick={borrar} disabled={borrando}>
+              {borrando && <Spinner />}
               {borrando ? "Borrando…" : "Borrar"}
             </button>
           )}
@@ -313,6 +315,7 @@ export function RecordDetail() {
                     Cancelar
                   </button>
                   <button className="btn btn-primary" type="button" onClick={guardarDatos} disabled={guardandoDatos}>
+                    {guardandoDatos && <Spinner />}
                     {guardandoDatos ? "Guardando…" : "Guardar cambios"}
                   </button>
                 </div>
@@ -369,6 +372,7 @@ export function RecordDetail() {
                       onClick={enviarRechazoTecnica}
                       disabled={enviandoRechazoTecnica || motivoNoSePudo.trim().length < 5}
                     >
+                      {enviandoRechazoTecnica && <Spinner />}
                       {enviandoRechazoTecnica ? "Enviando…" : "Confirmar que no se pudo generar"}
                     </button>
                   </div>
@@ -404,6 +408,7 @@ export function RecordDetail() {
 
                   <div className="form-actions">
                     <button className="btn btn-secondary" onClick={guardarBorrador} disabled={guardando} type="button">
+                      {guardando && <Spinner />}
                       {guardando ? "Guardando…" : "Guardar borrador"}
                     </button>
                     <button className="btn btn-ghost-danger" type="button" onClick={() => setRechazandoTecnica(true)}>
@@ -415,6 +420,7 @@ export function RecordDetail() {
                       disabled={completando || destinatarios.length === 0}
                       type="button"
                     >
+                      {completando && <Spinner />}
                       {completando ? "Completando…" : "Marcar como completada y notificar"}
                     </button>
                   </div>
@@ -471,6 +477,7 @@ export function RecordDetail() {
                       onClick={enviarRechazoPlaneamiento}
                       disabled={decidiendo || motivoRechazoPlaneamiento.trim().length < 5}
                     >
+                      {decidiendo && <Spinner />}
                       {decidiendo ? "Enviando…" : "Rechazar y devolver a revisión"}
                     </button>
                   </div>
@@ -483,6 +490,7 @@ export function RecordDetail() {
                       Rechazar
                     </button>
                     <button className="btn btn-primary" type="button" onClick={concluir} disabled={decidiendo}>
+                      {decidiendo && <Spinner />}
                       {decidiendo ? "Concluyendo…" : "Concluir requerimiento"}
                     </button>
                   </div>

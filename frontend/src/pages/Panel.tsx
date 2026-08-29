@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { LoadingState } from "../components/Spinner";
 import { ESTADO_LABELS, type ConciliationRecord, type EstadoRegistro } from "../types";
 
 const TONE: Record<EstadoRegistro, string> = {
@@ -57,7 +58,7 @@ export function Panel() {
     [registros]
   );
 
-  if (loading) return <p>Cargando panel…</p>;
+  if (loading) return <LoadingState label="Cargando panel…" />;
 
   return (
     <div>

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../api/client";
+import { Spinner } from "../components/Spinner";
 
 export function Login() {
   const { user, login } = useAuth();
@@ -59,6 +60,7 @@ export function Login() {
           {error && <div className="form-error">{error}</div>}
 
           <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: "100%", justifyContent: "center" }}>
+            {loading && <Spinner />}
             {loading ? "Ingresando…" : "Ingresar"}
           </button>
         </form>

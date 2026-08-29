@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
+import { LoadingState } from "./components/Spinner";
 import { Login } from "./pages/Login";
 import { Seguimiento } from "./pages/Seguimiento";
 import { Panel } from "./pages/Panel";
@@ -11,7 +12,7 @@ import { Usuarios } from "./pages/Usuarios";
 function PrivateArea() {
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="app-loading">Cargando…</div>;
+  if (loading) return <div className="app-loading"><LoadingState label="Cargando…" /></div>;
   if (!user) return <Navigate to="/login" replace />;
 
   return (
