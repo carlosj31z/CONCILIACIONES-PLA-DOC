@@ -150,6 +150,13 @@ a {
   min-width: 0;
 }
 
+.greeting-bar {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+}
+
 .page-header {
   display: flex;
   align-items: center;

@@ -42,6 +42,7 @@ export interface ManagedUser {
   nombre: string;
   email: string;
   role: Role;
+  puesto?: string | null;
   activo: boolean;
   createdAt: string;
 }

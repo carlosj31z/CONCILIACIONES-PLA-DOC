@@ -5,8 +5,16 @@ import { ROLE_LABELS } from "../types";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : undefined);
 
+function saludoSegunHora(): string {
+  const hora = new Date().getHours();
+  if (hora < 12) return "Buenos días";
+  if (hora < 19) return "Buenas tardes";
+  return "Buenas noches";
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
+  const primerNombre = user?.nombre.split(" ")[0];
 
   return (
     <div className="layout">
@@ -48,7 +56,14 @@ export function Layout({ children }: { children: ReactNode }) {
           <button onClick={logout}>Cerrar sesión</button>
         </div>
       </aside>
-      <main className="main">{children}</main>
+      <main className="main">
+        {primerNombre && (
+          <div className="greeting-bar">
+            {saludoSegunHora()}, {primerNombre}
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

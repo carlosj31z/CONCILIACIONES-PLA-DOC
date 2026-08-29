@@ -11,7 +11,7 @@ export function Usuarios() {
 
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [puesto, setPuesto] = useState("");
   const [role, setRole] = useState<Role>("PLANEAMIENTO");
   const [creando, setCreando] = useState(false);
 
@@ -29,10 +29,10 @@ export function Usuarios() {
     setError(null);
     setCreando(true);
     try {
-      await api.post("/users", { nombre, email, password, role });
+      await api.post("/users", { nombre, email, role, puesto: puesto || undefined });
       setNombre("");
       setEmail("");
-      setPassword("");
+      setPuesto("");
       setRole("PLANEAMIENTO");
       await cargar();
     } catch (err) {
@@ -62,24 +62,12 @@ export function Usuarios() {
     }
   }
 
-  async function restablecerPassword(u: ManagedUser) {
-    const nueva = window.prompt(`Nueva contraseña para ${u.email} (mínimo 8 caracteres):`);
-    if (!nueva) return;
-    setError(null);
-    try {
-      await api.patch(`/users/${u.id}`, { password: nueva });
-      window.alert("Contraseña actualizada.");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo restablecer la contraseña");
-    }
-  }
-
   return (
     <div>
       <div className="page-header">
         <div>
           <h1>Usuarios</h1>
-          <p>Alta y administración de cuentas de Planeamiento, Documentación Técnica y Admin.</p>
+          <p>Alta y administración de cuentas de Planeamiento, Documentación Técnica y Admin. El acceso es solo con el correo, sin contraseña.</p>
         </div>
       </div>
 
@@ -91,18 +79,11 @@ export function Usuarios() {
           </div>
           <div className="form-field">
             <label htmlFor="email">Correo</label>
-            <input id="email" type="text" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div className="form-field">
-            <label htmlFor="password">Contraseña</label>
-            <input
-              id="password"
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mínimo 8 caracteres"
-              required
-            />
+            <label htmlFor="puesto">Puesto</label>
+            <input id="puesto" type="text" value={puesto} onChange={(e) => setPuesto(e.target.value)} placeholder="Ej. Analista de Documentación Técnica" />
           </div>
           <div className="form-field">
             <label htmlFor="role">Rol</label>
@@ -134,9 +115,9 @@ export function Usuarios() {
               <tr>
                 <th>Nombre</th>
                 <th>Correo</th>
+                <th>Puesto</th>
                 <th>Rol</th>
                 <th>Estado</th>
-                <th>Contraseña</th>
               </tr>
             </thead>
             <tbody>
@@ -146,6 +127,7 @@ export function Usuarios() {
                   <tr key={u.id} style={{ cursor: "default" }}>
                     <td className="producto-cell">{u.nombre}</td>
                     <td>{u.email}</td>
+                    <td>{u.puesto ?? "—"}</td>
                     <td>
                       <select
                         value={u.role}
@@ -169,11 +151,6 @@ export function Usuarios() {
                         onClick={() => alternarActivo(u)}
                       >
                         {u.activo ? "Activo — desactivar" : "Inactivo — activar"}
-                      </button>
-                    </td>
-                    <td>
-                      <button className="btn btn-secondary" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => restablecerPassword(u)}>
-                        Restablecer
                       </button>
                     </td>
                   </tr>

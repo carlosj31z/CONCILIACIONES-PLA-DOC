@@ -1,22 +1,42 @@
-import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import { PrismaClient, type Role } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-async function upsertUser(email: string, nombre: string, role: "PLANEAMIENTO" | "DOC_TECNICA" | "ADMIN") {
-  const passwordHash = await bcrypt.hash("Cambiar123!", 10);
-  return prisma.user.upsert({
-    where: { email },
-    update: {},
-    create: { email, nombre, role, passwordHash },
-  });
+interface SeedUser {
+  email: string;
+  nombre: string;
+  role: Role;
+  puesto?: string;
 }
 
+// Acceso solo con correo (sin contraseña): basta con que la cuenta exista
+// y esté activa. El alta y edición posteriores se hacen desde /usuarios.
+const usuarios: SeedUser[] = [
+  { email: "admin@empresa.com", nombre: "Administrador", role: "ADMIN" },
+
+  // Documentación Técnica
+  { email: "gborjav@humanovalab.com", nombre: "Giannina Borja Vega", role: "DOC_TECNICA", puesto: "Analista de Documentación Técnica" },
+  { email: "dquirozt@humanovalab.com", nombre: "Delia Quiroz Torres", role: "DOC_TECNICA", puesto: "Analista de Documentación Técnica" },
+  { email: "cjesusz@humanovalab.com", nombre: "Carlos Jesús Zegarra", role: "DOC_TECNICA", puesto: "Analista de Documentación Técnica" },
+  { email: "mfernandezo@humanovalab.com", nombre: "Monica Fernandez Osores", role: "DOC_TECNICA", puesto: "Jefe de Documentación Técnica" },
+
+  // Planeamiento
+  { email: "druam@humanovalab.com", nombre: "Diego Rua Muñoz", role: "PLANEAMIENTO", puesto: "Planeador de Producción" },
+  { email: "jolivaresa@humanovalab.com", nombre: "Juan Olivares Ayala", role: "PLANEAMIENTO", puesto: "Planificador de Materiales" },
+  { email: "macordova@humanovalab.com", nombre: "Mabel Cordova Belleza", role: "PLANEAMIENTO", puesto: "Programador de Producción" },
+  { email: "hlopezt@humanovalab.com", nombre: "Hellen Lopez Tomaya", role: "PLANEAMIENTO", puesto: "Planeador de Producción" },
+  { email: "lfernandez@humanovalab.com", nombre: "Luis Fernandez", role: "PLANEAMIENTO", puesto: "Planificador de Materiales" },
+];
+
 async function main() {
-  await upsertUser("planeamiento@empresa.com", "Usuario Planeamiento", "PLANEAMIENTO");
-  await upsertUser("doctecnica@empresa.com", "Usuario Documentación Técnica", "DOC_TECNICA");
-  await upsertUser("admin@empresa.com", "Administrador", "ADMIN");
-  console.log("Usuarios de prueba creados. Contraseña para todos: Cambiar123!");
+  for (const u of usuarios) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: { nombre: u.nombre, role: u.role, puesto: u.puesto },
+      create: u,
+    });
+  }
+  console.log(`${usuarios.length} usuarios creados/actualizados. Acceso: solo correo, sin contraseña.`);
 }
 
 main()

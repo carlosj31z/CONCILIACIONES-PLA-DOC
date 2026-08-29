@@ -35,14 +35,12 @@ npm run dev                  # http://localhost:4000
 
 Para desarrollo local puedes usar directamente tu proyecto de Supabase (más simple: no
 hay nada que instalar), o un Postgres local si prefieres no tocar datos de Supabase
-mientras pruebas cosas. Usuarios de prueba creados por `npm run seed` (contraseña
-`Cambiar123!` para todos — **cámbiala o bórralos antes de usar la app con datos reales**):
+mientras pruebas cosas. `npm run seed` crea/actualiza el usuario admin y las cuentas
+reales de Planeamiento y Documentación Técnica (ver `backend/prisma/seed.ts`).
 
-| Email                        | Rol                    |
-|-------------------------------|-------------------------|
-| planeamiento@empresa.com      | PLANEAMIENTO            |
-| doctecnica@empresa.com        | DOC_TECNICA             |
-| admin@empresa.com             | ADMIN                   |
+**El acceso es solo con el correo, sin contraseña**: cualquier cuenta activa en la
+tabla `User` puede ingresar escribiendo su email. El alta de nuevas cuentas la hace
+un ADMIN desde la pestaña **Usuarios**.
 
 ### 2. Frontend
 
@@ -52,15 +50,16 @@ npm install
 npm run dev    # http://localhost:5173 (proxy /api -> localhost:4000)
 ```
 
-Abre `http://localhost:5173`, ingresa con cualquiera de los usuarios de prueba.
+Abre `http://localhost:5173`, ingresa con el correo de cualquiera de las cuentas
+creadas por el seed (no pide contraseña).
 
 ### Administrar usuarios
 
 El usuario `admin@empresa.com` (rol `ADMIN`) ve una pestaña **Usuarios** en el menú
-lateral, no visible para los demás roles: ahí puede crear cuentas nuevas, cambiar el
-rol de cualquiera, activar/desactivar accesos y restablecer contraseñas — sin tocar la
-base de datos directamente. Un admin no puede desactivarse ni cambiarse el rol a sí
-mismo (para no quedarse sin acceso por accidente).
+lateral, no visible para los demás roles: ahí puede crear cuentas nuevas (nombre,
+correo, puesto y rol), cambiar el rol de cualquiera y activar/desactivar accesos —
+sin tocar la base de datos directamente. Un admin no puede desactivarse ni cambiarse
+el rol a sí mismo (para no quedarse sin acceso por accidente).
 
 ## Despliegue en Vercel
 
@@ -88,8 +87,8 @@ sí fallaría si hay un choque de nombres con algo que ya tengas ahí).
    cd backend
    npm install
    npx prisma migrate deploy
-   npm run seed   # opcional: crea los 3 usuarios de prueba — bórralos/cámbiales la
-                  # contraseña antes de dar acceso real a la app
+   npm run seed   # crea/actualiza el admin y las cuentas reales de Planeamiento y
+                  # Documentación Técnica (ver backend/prisma/seed.ts)
    ```
    Este paso es manual y a propósito: aplicar un cambio de esquema a una base de datos
    que ya usas para otra cosa no debería pasar automáticamente en cada `git push`.

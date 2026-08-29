@@ -48,13 +48,13 @@ enum EstadoEnvioCorreo {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  nombre       String
-  email        String   @unique
-  passwordHash String
-  role         Role
-  activo       Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  nombre    String
+  email     String   @unique
+  role      Role
+  puesto    String?
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
 
   registrosCreados      ConciliationRecord[] @relation("CreadoPor")
   respuestasCompletadas TechnicalResponse[]  @relation("CompletadoPor")

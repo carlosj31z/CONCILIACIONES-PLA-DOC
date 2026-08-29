@@ -29,20 +29,19 @@ export const actualizarTecnicaSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  email: z.string().trim().email(),
 });
 
 export const crearUsuarioSchema = z.object({
   nombre: z.string().trim().min(2, "El nombre es requerido"),
   email: z.string().trim().email("Correo inválido"),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
   role: z.nativeEnum(Role),
+  puesto: z.string().trim().min(1).optional(),
 });
 
 export const actualizarUsuarioSchema = z.object({
   nombre: z.string().trim().min(2).optional(),
   role: z.nativeEnum(Role).optional(),
   activo: z.boolean().optional(),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").optional(),
+  puesto: z.string().trim().min(1).optional(),
 });

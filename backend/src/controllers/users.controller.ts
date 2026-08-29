@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db";
 import { HttpError } from "../middleware/errorHandler";
@@ -10,6 +9,7 @@ const SELECT_PUBLICO = {
   nombre: true,
   email: true,
   role: true,
+  puesto: true,
   activo: true,
   createdAt: true,
 } as const;
@@ -24,11 +24,10 @@ export async function listarUsuarios(_req: Request, res: Response) {
 
 export async function crearUsuario(req: Request, res: Response) {
   const data = crearUsuarioSchema.parse(req.body);
-  const passwordHash = await bcrypt.hash(data.password, 10);
 
   try {
     const usuario = await prisma.user.create({
-      data: { nombre: data.nombre, email: data.email.toLowerCase(), passwordHash, role: data.role },
+      data: { nombre: data.nombre, email: data.email.toLowerCase(), role: data.role, puesto: data.puesto },
       select: SELECT_PUBLICO,
     });
     res.status(201).json(usuario);
@@ -48,15 +47,12 @@ export async function actualizarUsuario(req: Request, res: Response) {
     throw new HttpError(400, "No puedes desactivar tu propia cuenta");
   }
 
-  const { password, ...resto } = data;
-  const passwordHash = password ? await bcrypt.hash(password, 10) : undefined;
-
   const existente = await prisma.user.findUnique({ where: { id } });
   if (!existente) throw new HttpError(404, "Usuario no encontrado");
 
   const usuario = await prisma.user.update({
     where: { id },
-    data: { ...resto, ...(passwordHash ? { passwordHash } : {}) },
+    data,
     select: SELECT_PUBLICO,
   });
   res.json(usuario);
