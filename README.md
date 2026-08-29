@@ -119,10 +119,11 @@ Preview si quieres probar PRs):
 | `JWT_EXPIRES_IN` | `8h` (o el valor que prefieras) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` | `smtp.office365.com` / `587` / `false` (u otro proveedor) |
 | `SMTP_USER` / `SMTP_PASSWORD` | Cuenta de servicio de Outlook/Microsoft 365 (o API key del proveedor) |
-| `MAIL_FROM` | `"Recetas de Conciliación <conciliaciones@tuempresa.com>"` |
+| `MAIL_FROM` | `"Conciliaciones <conciliaciones@tuempresa.com>"` |
 | `APP_BASE_URL` | La URL pública que te da Vercel, ej. `https://tu-proyecto.vercel.app` |
 | `CRON_SECRET` | Un secreto largo y aleatorio — Vercel lo agrega solo como header `Authorization: Bearer <valor>` en cada llamada de Cron |
 | `CORS_ORIGIN` | Opcional; con todo en el mismo dominio no hace falta, pero puedes fijar `APP_BASE_URL` igual por prolijidad |
+| `SAP_MAESTRO_SUPABASE_URL` / `SAP_MAESTRO_SUPABASE_ANON_KEY` | Opcional — solo si el proyecto de Supabase del Maestro de Materiales de SAP (usado por la búsqueda de Cód. Producto/Producto al crear un requerimiento) cambia de URL o de "publishable key"; por defecto usa los mismos valores que ya usa esa herramienta |
 
 > `APP_BASE_URL` necesita la URL final de Vercel, que recién existe después del primer
 > deploy. Hacé un primer deploy con un valor provisorio, copiá la URL real que Vercel

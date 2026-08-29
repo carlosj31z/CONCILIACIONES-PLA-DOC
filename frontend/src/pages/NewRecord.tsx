@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { EmailTagInput } from "../components/EmailTagInput";
+import { MaterialLookup } from "../components/MaterialLookup";
 import { Spinner } from "../components/Spinner";
 import { TIPO_FLUJO_LABELS, TIPOS_FLUJO, type ConciliationRecord, type DirectoryUser, type TipoFlujo } from "../types";
 
@@ -176,6 +177,16 @@ export function NewRecord() {
 
       <form className="card" onSubmit={handleCrear}>
         <div className="form-grid">
+          <div className="form-field span-2">
+            <label>Buscar en el Maestro de Materiales (SAP)</label>
+            <MaterialLookup
+              onSelect={(m) => {
+                setCodigoProducto(m.codigo);
+                setProducto(m.producto);
+              }}
+            />
+            <span className="hint">Opcional: elige un resultado para autocompletar Cód. Producto y Producto desde SAP.</span>
+          </div>
           <div className="form-field">
             <label htmlFor="codigoProducto">Cód. Producto</label>
             <input id="codigoProducto" type="text" value={codigoProducto} onChange={(e) => setCodigoProducto(e.target.value)} />

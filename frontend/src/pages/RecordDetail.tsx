@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import { EmailTagInput } from "../components/EmailTagInput";
+import { MaterialLookup } from "../components/MaterialLookup";
 import { RecordFlowStatus } from "../components/RecordFlowStatus";
 import { LoadingState, Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
@@ -272,6 +273,16 @@ export function RecordDetail() {
             {editando ? (
               <>
                 <div className="form-grid">
+                  <div className="form-field span-2">
+                    <label>Buscar en el Maestro de Materiales (SAP)</label>
+                    <MaterialLookup
+                      onSelect={(m) => {
+                        setCodigoProducto(m.codigo);
+                        setProducto(m.producto);
+                      }}
+                    />
+                    <span className="hint">Opcional: elige un resultado para autocompletar Cód. Producto y Producto desde SAP.</span>
+                  </div>
                   <div className="form-field">
                     <label>Cód. Producto</label>
                     <input type="text" value={codigoProducto} onChange={(e) => setCodigoProducto(e.target.value)} />

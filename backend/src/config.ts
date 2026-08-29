@@ -33,4 +33,17 @@ export const config = {
   // /api/cron/process-emails. Si no está configurado, el endpoint queda
   // deshabilitado (nunca acepta llamadas anónimas).
   cronSecret: process.env.CRON_SECRET,
+
+  // Proyecto de Supabase (independiente del de esta app) donde vive el
+  // Maestro de Materiales de SAP MM & LM ("mm_materiales"). Se consulta en
+  // modo solo-lectura para que Planeamiento pueda buscar código/nombre de
+  // producto real de SAP en vez de escribirlos a mano. La URL y la
+  // "publishable key" por defecto son las mismas que ya usa esa herramienta
+  // (una publishable key está pensada para ser pública, protegida por RLS
+  // del lado de Supabase); quedan overrideables por variable de entorno por
+  // si algún día cambian.
+  sapMaestro: {
+    url: process.env.SAP_MAESTRO_SUPABASE_URL ?? "https://wjlryrqkcnvjlrdibzol.supabase.co",
+    anonKey: process.env.SAP_MAESTRO_SUPABASE_ANON_KEY ?? "sb_publishable_2Qm4zOkdHeSMOYvatAyNiA_K5crlvFc",
+  },
 };
