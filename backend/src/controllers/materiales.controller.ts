@@ -5,6 +5,29 @@ import { HttpError } from "../middleware/errorHandler";
 interface MaestroMaterialRow {
   material: string;
   texto_material: string;
+  data: Record<string, unknown> | null;
+}
+
+const CANTIDAD_CANDIDATOS = 60;
+const CANTIDAD_RESULTADOS = 20;
+
+/**
+ * El Maestro de Materiales incluye de todo (producto terminado, materia
+ * prima, material de envase y empaque, etc.), pero en Conciliaciones el
+ * campo "Producto" siempre se refiere a un producto terminado. Se detecta
+ * por el texto de "Denominación tipo material" del export de SAP en vez de
+ * por un código exacto (p.ej. "ZPT"), porque ese código puede variar entre
+ * plantas/configuraciones, mientras que la palabra "Terminado" en la
+ * denominación es estable.
+ */
+function esProductoTerminado(data: Record<string, unknown> | null): boolean {
+  const tipo = data?.["Denominación tipo material"];
+  return typeof tipo === "string" && /terminad/i.test(tipo);
+}
+
+function tipoMaterialLabel(data: Record<string, unknown> | null): string {
+  const tipo = data?.["Denominación tipo material"];
+  return typeof tipo === "string" ? tipo : "";
 }
 
 /**
@@ -33,7 +56,7 @@ export async function buscarMateriales(req: Request, res: Response) {
   const filtro = `material.ilike.*${termino}*,texto_material.ilike.*${termino}*`;
   const url =
     `${config.sapMaestro.url}/rest/v1/mm_materiales` +
-    `?select=material,texto_material&or=(${encodeURIComponent(filtro)})&order=material.asc&limit=20`;
+    `?select=material,texto_material,data&or=(${encodeURIComponent(filtro)})&order=material.asc&limit=${CANTIDAD_CANDIDATOS}`;
 
   let resp;
   try {
@@ -56,9 +79,21 @@ export async function buscarMateriales(req: Request, res: Response) {
   // Deduplica por código de material (el Maestro puede tener alguna fila
   // repetida) y descarta filas sin código.
   const vistos = new Set<string>();
-  const resultado = filas
-    .filter((f) => f.material && !vistos.has(f.material) && vistos.add(f.material))
-    .map((f) => ({ codigo: f.material, producto: f.texto_material || "" }));
+  const unicas = filas.filter((f) => f.material && !vistos.has(f.material) && vistos.add(f.material));
+
+  // Productos terminados primero (lo que Planeamiento casi siempre busca en
+  // Conciliaciones), y detrás el resto (materia prima, envase y empaque,
+  // etc.) — no se ocultan del todo, por si alguna vez sí hace falta uno de
+  // esos códigos.
+  const terminados = unicas.filter((f) => esProductoTerminado(f.data));
+  const otros = unicas.filter((f) => !esProductoTerminado(f.data));
+
+  const resultado = [...terminados, ...otros].slice(0, CANTIDAD_RESULTADOS).map((f) => ({
+    codigo: f.material,
+    producto: f.texto_material || "",
+    tipo: tipoMaterialLabel(f.data),
+    terminado: esProductoTerminado(f.data),
+  }));
 
   res.json(resultado);
 }

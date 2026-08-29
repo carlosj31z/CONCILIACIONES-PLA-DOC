@@ -4,6 +4,8 @@ import { api } from "../api/client";
 interface MaterialResult {
   codigo: string;
   producto: string;
+  tipo: string;
+  terminado: boolean;
 }
 
 interface MaterialLookupProps {
@@ -17,6 +19,11 @@ interface MaterialLookupProps {
  * Es solo un atajo: al elegir un resultado se rellenan los campos de abajo,
  * que siguen siendo editables normalmente por si el código no existe en el
  * Maestro o hace falta ajustarlo.
+ *
+ * El Maestro trae de todo (producto terminado, materia prima, envase y
+ * empaque…), pero acá casi siempre se busca un producto terminado — el
+ * backend ya los prioriza; cuando aparece algo que no lo es, se etiqueta
+ * con su tipo para que no se confunda con un producto terminado.
  */
 export function MaterialLookup({ onSelect }: MaterialLookupProps) {
   const [q, setQ] = useState("");
@@ -86,7 +93,10 @@ export function MaterialLookup({ onSelect }: MaterialLookupProps) {
             resultados.map((r) => (
               <button type="button" key={r.codigo} className="material-lookup-option" onClick={() => elegir(r)}>
                 <span className="material-lookup-code">{r.codigo}</span>
-                <span className="material-lookup-name">{r.producto || "Sin descripción"}</span>
+                <span className="material-lookup-name">
+                  {r.producto || "Sin descripción"}
+                  {!r.terminado && r.tipo && <span className="material-lookup-tag">{r.tipo}</span>}
+                </span>
               </button>
             ))}
         </div>
