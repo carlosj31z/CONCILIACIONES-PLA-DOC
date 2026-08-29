@@ -317,36 +317,52 @@ Implementado con JWT + middleware `requireRole(...)` en `backend/src/middleware/
 
 ## Topología de despliegue (Vercel + Supabase)
 
-Un solo proyecto de Vercel sirve el frontend estático y la API; pasos exactos en el
+Un solo **proyecto** de Vercel, con **dos servicios** dentro (la modalidad
+"multi-service" que Vercel detecta automáticamente al importar un repo con
+`frontend/` y `backend/` como apps independientes): `frontend` (Vite, estático) y
+`backend` (Node/Express, servicio persistente que corre `node dist/server.js`, no una
+función serverless envuelta). Pasos exactos en el
 [`README.md`](../README.md#despliegue-en-vercel).
 
 ```mermaid
 flowchart LR
-    subgraph Vercel["Proyecto único en Vercel"]
-        FE["frontend/dist\n(React, estático)"]
-        API["api/[...path].ts\n(función serverless =\napp Express de backend/)"]
+    subgraph Vercel["Proyecto Vercel (multi-servicio)"]
+        FE["servicio frontend\n(Vite, estático)"]
+        BE["servicio backend\n(Express, node dist/server.js)"]
         CRON["Vercel Cron\nGET /api/cron/process-emails"]
     end
 
     Browser["Navegador del usuario"] -->|"/ (SPA)"| FE
-    Browser -->|"/api/*"| API
-    API -->|"Prisma (pooled, 6543)"| Supabase[("Supabase\nPostgreSQL")]
-    CRON -->|"Bearer CRON_SECRET"| API
-    API -->|"SMTP (5s timeout)"| SMTP["smtp.office365.com"]
+    Browser -->|"/api/*"| BE
+    BE -->|"Prisma (pooled, 6543)"| Supabase[("Supabase\nPostgreSQL")]
+    CRON -->|"Bearer CRON_SECRET"| BE
+    BE -->|"SMTP (5s timeout)"| SMTP["smtp.office365.com"]
     SMTP --> Outlook["Bandeja Outlook\ndel destinatario"]
 ```
 
-- `vercel.json` define `installCommand`/`buildCommand`/`outputDirectory` (instala
-  `backend/` y `frontend/`, genera el cliente Prisma, buildea el frontend con Vite) y
-  el rewrite de SPA (`/((?!api/).*) → /index.html`) para que las rutas de React Router
-  sobrevivan un refresh de página.
-- `api/[...path].ts` reexporta la app Express tal cual (`export default app`) — Vercel
-  reconoce automáticamente cualquier archivo bajo `/api` como función serverless, y una
-  app de Express ya es un manejador `(req, res) => void`, así que no hace falta ningún
-  adaptador.
-- Frontend y API quedan en el mismo dominio (mismo proyecto), así que no hay problema
-  de CORS en producción.
-- La conexión a Postgres usa el **singleton cacheado en `globalThis`**
-  (`backend/src/db.ts`) para reutilizar la conexión entre invocaciones "calientes" de
-  la función, y la URL **pooled** de Supabase (pgbouncer, puerto 6543) para no agotar
-  el límite de conexiones concurrentes que permiten las funciones serverless.
+- `vercel.json` (raíz del repo) declara los dos servicios (`root` + `framework` de
+  cada uno) y dos `rewrites`: todo lo que empieza con `/api` va al servicio
+  `backend`, todo lo demás va al servicio `frontend`. Cada servicio instala y
+  buildea con los scripts de su propio `package.json` (el `postinstall: prisma
+  generate` de `backend/package.json` corre solo, igual que antes).
+- El backend ya **no** se envuelve en una función serverless: se despliega y corre
+  igual que `npm run build && npm start` en local, escuchando en el puerto que
+  Vercel le asigna vía `PORT` (`backend/src/config.ts` ya lo lee así).
+- Frontend y backend quedan bajo el mismo dominio (mismo proyecto), así que no hay
+  problema de CORS en producción, y las rutas de React Router sobreviven un refresh
+  de página porque el servicio `frontend` (framework `vite`) sirve `index.html` como
+  fallback de SPA automáticamente.
+- El envío de correo sigue siendo **inline + reintento** (ver sección 2): aunque el
+  backend ahora es un servicio persistente y no una función efímera, no se puede dar
+  por sentado que el proceso se mantenga vivo indefinidamente, así que se conservan
+  tanto el intento inmediato en cada request como el Cron Job de reintento — y,
+  como refuerzo adicional mientras el proceso esté vivo, el mismo `setInterval` que
+  antes solo corría en desarrollo local (`startEmailWorker`, en `server.ts`) ahora
+  también corre en producción. Cualquier error ahí se atrapa explícitamente
+  (`.catch`) para que un problema pasajero de conexión a la base de datos no tumbe
+  el servicio completo — esto costó un bug real durante las pruebas de despliegue:
+  sin el `.catch`, un `findMany` fallido al arrancar mataba el proceso entero con un
+  "unhandled promise rejection".
+- La conexión a Postgres sigue usando el **singleton cacheado en `globalThis`**
+  (`backend/src/db.ts`) y la URL **pooled** de Supabase (pgbouncer, puerto 6543),
+  buena práctica tanto para servicios persistentes como para funciones serverless.

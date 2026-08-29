@@ -68,9 +68,20 @@ export async function procesarLote(limit = 20): Promise<{ procesados: number; en
   return { procesados: pendientes.length, enviados };
 }
 
-// Solo para desarrollo local: emula el Cron de Vercel con un intervalo en
-// proceso. No se usa en producción (allí no hay proceso persistente).
+// Reintento adicional en proceso: si el backend corre como servicio
+// persistente (no como función serverless efímera), este intervalo reintenta
+// correos FALLIDO/PENDIENTE cada pocos segundos, sin esperar al Cron Job
+// (que en el plan Hobby de Vercel solo corre 1 vez al día). Es un refuerzo,
+// no la única red de seguridad: si el proceso se reinicia o el host no lo
+// mantiene vivo, el Cron sigue cubriendo el reintento igual. Nunca debe
+// tumbar el proceso: cualquier error (ej. la base de datos momentáneamente
+// inalcanzable al arrancar) se atrapa y solo se registra en el log.
 export function startEmailWorker(): void {
-  procesarLote();
-  setInterval(() => void procesarLote(), config.emailWorkerIntervalMs);
+  const ejecutar = () => {
+    procesarLote().catch((err) => {
+      console.error("[email.worker] error al procesar el lote de correos:", err);
+    });
+  };
+  ejecutar();
+  setInterval(ejecutar, config.emailWorkerIntervalMs);
 }

@@ -64,9 +64,10 @@ mismo (para no quedarse sin acceso por accidente).
 
 ## Despliegue en Vercel
 
-La app se despliega como **un solo proyecto de Vercel**: el frontend se sirve como
-sitio estático y el backend Express queda envuelto en una función serverless bajo
-`/api` (ver `api/[...path].ts` y `vercel.json`). El detalle de esta topología está en
+La app se despliega como **un solo proyecto de Vercel con dos servicios**: al importar
+el repo, Vercel detecta automáticamente `frontend/` (Vite) y `backend/` (Express) como
+apps independientes y arma la configuración "multi-service" — `vercel.json` en la raíz
+ya trae ese formato. El detalle de esta topología está en
 [`docs/DISENO.md`](docs/DISENO.md#topología-de-despliegue-vercel--supabase).
 
 ### Paso 1 — Preparar la base de datos en Supabase
@@ -98,12 +99,13 @@ sí fallaría si hay un choque de nombres con algo que ya tengas ahí).
 1. En [vercel.com](https://vercel.com) → **Add New → Project** → importa el repositorio
    `carlosj31z/CONCILIACIONES-PLA-DOC` (rama `claude/recetas-conciliacion-app-fq22at` o
    la que corresponda tras el merge).
-2. **Framework Preset**: elige **Other**. Deja los campos de *Build and Output
-   Settings* en su valor por defecto/heredado — `vercel.json` en la raíz del repo ya
-   define `installCommand`, `buildCommand` y `outputDirectory`; si el dashboard trae
-   algún valor propio escrito ahí, bórralo para que no pise la configuración del archivo.
-3. **Root Directory**: déjalo en la raíz del repo (no lo cambies a `frontend` ni
-   `backend` — el proyecto necesita ver ambas carpetas más `/api` y `vercel.json`).
+2. Vercel va a mostrar la pantalla de **"New Project"** con un **Application Preset**
+   en **"Services"**, listando `frontend` (Vite) y `backend` (Express) ya detectados, y
+   una vista previa del `vercel.json` requerido — debe coincidir con el que ya está en
+   la raíz del repo. Si Vercel dice que falta o no coincide, dale **Refresh** (lee el
+   archivo del último commit de la rama); no necesitás escribir nada a mano ahí.
+3. No cambies el **Project Root** de cada servicio (`frontend` y `backend` ya vienen
+   con su `root` correcto desde `vercel.json`).
 
 ### Paso 3 — Variables de entorno
 
@@ -130,11 +132,14 @@ Preview si quieres probar PRs):
 ### Paso 4 — Deploy
 
 Con lo anterior, dale **Deploy**. Vercel va a:
-1. Correr `installCommand` (instala `backend/` y `frontend/`, y `prisma generate` vía
-   el `postinstall` de `backend/package.json`).
-2. Correr `buildCommand` (`vite build` del frontend).
-3. Empaquetar `api/[...path].ts` como función serverless (Node.js), incluyendo el
-   cliente de Prisma ya generado.
+1. Instalar y buildear el servicio `frontend` (`npm install` + `npm run build`, Vite)
+   y servirlo como sitio estático.
+2. Instalar y buildear el servicio `backend` (`npm install` — corre `prisma generate`
+   vía el `postinstall` de `backend/package.json` — y `npm run build`, que compila
+   TypeScript) y arrancarlo con `npm start` (`node dist/server.js`), como un servicio
+   persistente escuchando en el puerto que Vercel le asigna.
+3. Aplicar los `rewrites` de `vercel.json`: todo `/api/*` va al servicio `backend`,
+   el resto va al servicio `frontend`.
 4. Registrar el Cron Job de `vercel.json` (`/api/cron/process-emails`).
 
 ### Paso 5 — Verificación post-deploy
