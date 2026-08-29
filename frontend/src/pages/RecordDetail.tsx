@@ -6,6 +6,7 @@ import { EmailTagInput } from "../components/EmailTagInput";
 import { RecordFlowStatus } from "../components/RecordFlowStatus";
 import { LoadingState, Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
+import { formatDuracion, tiempoResolucionMs } from "../utils/duration";
 import { ESTADO_LABELS, TIPO_FLUJO_LABELS, type ConciliationRecord, type DirectoryUser } from "../types";
 
 const ESTADOS_EDITABLES = ["PENDIENTE_PLANEAMIENTO", "EN_REVISION_TECNICA"];
@@ -92,6 +93,8 @@ export function RecordDetail() {
   if (loading || !record) return <LoadingState label="Cargando registro…" />;
 
   const puedeEditarTecnica = user?.role === "DOC_TECNICA" || user?.role === "ADMIN";
+  const verTiempos = user?.role === "DOC_TECNICA" || user?.role === "ADMIN";
+  const msResolucion = tiempoResolucionMs(record);
   const enRevision = record.estado === "EN_REVISION_TECNICA";
   const esDueno = user?.id === record.creadoPorId || user?.role === "ADMIN";
   const puedeEditarDatos = esDueno && ESTADOS_EDITABLES.includes(record.estado);
@@ -338,6 +341,27 @@ export function RecordDetail() {
             {record.tipoFlujo && (
               <p className="hint" style={{ marginTop: 0 }}>
                 Ruta elegida: <strong>{TIPO_FLUJO_LABELS[record.tipoFlujo]}</strong>
+              </p>
+            )}
+
+            {verTiempos && msResolucion !== null && (
+              <p className="hint" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                Tiempo de resolución:
+                <span className="duration-pill">{formatDuracion(msResolucion)}</span>
+                <span style={{ color: "var(--color-text-muted)" }}>
+                  (solicitado el {new Date(record.createdAt).toLocaleDateString("es-PE")}, resuelto el{" "}
+                  {new Date(record.respuestaTecnica!.completadoAt!).toLocaleDateString("es-PE")})
+                </span>
+              </p>
+            )}
+
+            {verTiempos && msResolucion === null && record.estado === "EN_REVISION_TECNICA" && (
+              <p className="hint" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                Tiempo en curso:
+                <span className="duration-pill duration-pill--live">
+                  <span className="duration-pill-dot" />
+                  {formatDuracion(Date.now() - new Date(record.createdAt).getTime())}
+                </span>
               </p>
             )}
 

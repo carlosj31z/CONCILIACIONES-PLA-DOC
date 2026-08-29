@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { LoadingState } from "../components/Spinner";
+import { useAuth } from "../context/AuthContext";
+import { formatDuracion, tiempoResolucionMs } from "../utils/duration";
 import { ESTADO_LABELS, type ConciliationRecord, type EstadoRegistro } from "../types";
 
 const TONE: Record<EstadoRegistro, string> = {
@@ -17,6 +19,8 @@ function haceMenosDe(iso: string, horas: number): boolean {
 }
 
 export function Panel() {
+  const { user } = useAuth();
+  const verTiempos = user?.role === "DOC_TECNICA" || user?.role === "ADMIN";
   const [registros, setRegistros] = useState<ConciliationRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,6 +45,12 @@ export function Panel() {
   }, [registros]);
 
   const creadosHoy = useMemo(() => registros.filter((r) => haceMenosDe(r.createdAt, 24)).length, [registros]);
+
+  const tiempoPromedioResolucion = useMemo(() => {
+    const duraciones = registros.map(tiempoResolucionMs).filter((ms): ms is number => ms !== null);
+    if (duraciones.length === 0) return null;
+    return duraciones.reduce((a, b) => a + b, 0) / duraciones.length;
+  }, [registros]);
 
   const recientesCreados = useMemo(
     () => [...registros].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6),
@@ -76,6 +86,12 @@ export function Panel() {
           <span className="value">{creadosHoy}</span>
           <span className="label">Creados últimas 24h</span>
         </div>
+        {verTiempos && (
+          <div className="stat-tile tone-revision">
+            <span className="value">{tiempoPromedioResolucion !== null ? formatDuracion(tiempoPromedioResolucion) : "—"}</span>
+            <span className="label">Tiempo promedio de resolución</span>
+          </div>
+        )}
         {(Object.keys(conteos) as EstadoRegistro[]).map((estado) => (
           <div className={`stat-tile ${TONE[estado]}`} key={estado}>
             <span className="value">{conteos[estado]}</span>

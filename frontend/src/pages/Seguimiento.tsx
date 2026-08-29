@@ -4,12 +4,31 @@ import { api } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import { LoadingState } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
+import { formatDuracion, tiempoResolucionMs } from "../utils/duration";
 import { ESTADOS_REGISTRO, ESTADO_LABELS, TIPO_FLUJO_LABELS, type ConciliationRecord } from "../types";
+
+function ResolucionCell({ record }: { record: ConciliationRecord }) {
+  const ms = tiempoResolucionMs(record);
+  if (ms !== null) {
+    return <span className="duration-pill" title={`Resuelto el ${new Date(record.respuestaTecnica!.completadoAt!).toLocaleString("es-PE")}`}>{formatDuracion(ms)}</span>;
+  }
+  if (record.estado === "EN_REVISION_TECNICA") {
+    const enCurso = Date.now() - new Date(record.createdAt).getTime();
+    return (
+      <span className="duration-pill duration-pill--live" title="Documentación Técnica todavía la está resolviendo">
+        <span className="duration-pill-dot" />
+        {formatDuracion(enCurso)}
+      </span>
+    );
+  }
+  return <span className="id-cell">—</span>;
+}
 
 export function Seguimiento() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const puedeCrear = user?.role === "PLANEAMIENTO" || user?.role === "ADMIN";
+  const verTiempos = user?.role === "DOC_TECNICA" || user?.role === "ADMIN";
   const [registros, setRegistros] = useState<ConciliationRecord[]>([]);
   const [q, setQ] = useState("");
   const [planta, setPlanta] = useState("");
@@ -87,6 +106,8 @@ export function Seguimiento() {
                 <th>Ruta</th>
                 <th>Creado por</th>
                 <th>Fecha de conciliación</th>
+                {verTiempos && <th>Solicitado</th>}
+                {verTiempos && <th>Tiempo de resolución</th>}
               </tr>
             </thead>
             <tbody>
@@ -101,6 +122,12 @@ export function Seguimiento() {
                   <td>{r.tipoFlujo ? TIPO_FLUJO_LABELS[r.tipoFlujo] : "—"}</td>
                   <td>{r.creadoPor?.nombre ?? "—"}</td>
                   <td>{new Date(r.fechaConciliacion).toLocaleDateString("es-PE")}</td>
+                  {verTiempos && <td>{new Date(r.createdAt).toLocaleDateString("es-PE")}</td>}
+                  {verTiempos && (
+                    <td>
+                      <ResolucionCell record={r} />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
