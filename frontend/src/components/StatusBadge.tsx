@@ -1,12 +1,12 @@
 import { ESTADO_LABELS, type EstadoRegistro } from "../types";
 
 const STYLES: Record<EstadoRegistro, { fg: string; bg: string }> = {
-  PENDIENTE_PLANEAMIENTO: { fg: "#fbbf24", bg: "rgba(245, 158, 11, 0.16)" },
-  EN_REVISION_TECNICA: { fg: "#60a5fa", bg: "rgba(59, 130, 246, 0.16)" },
-  RECETA_GENERADA: { fg: "#4ade80", bg: "rgba(34, 197, 94, 0.16)" },
-  ACTUALIZACION_COMPLETADA: { fg: "#2dd4bf", bg: "rgba(20, 184, 166, 0.16)" },
-  RECHAZADA_TECNICA: { fg: "#f87171", bg: "rgba(248, 113, 113, 0.16)" },
-  CONCLUIDA: { fg: "#a3e635", bg: "rgba(163, 230, 53, 0.16)" },
+  PENDIENTE_PLANEAMIENTO: { fg: "#ffb020", bg: "rgba(255, 164, 18, 0.2)" },
+  EN_REVISION_TECNICA: { fg: "#6a9fff", bg: "rgba(51, 102, 255, 0.2)" },
+  RECETA_GENERADA: { fg: "#2fe07e", bg: "rgba(29, 224, 115, 0.2)" },
+  ACTUALIZACION_COMPLETADA: { fg: "#26e3d2", bg: "rgba(18, 214, 196, 0.2)" },
+  RECHAZADA_TECNICA: { fg: "#ff5c6c", bg: "rgba(255, 77, 94, 0.2)" },
+  CONCLUIDA: { fg: "#c2f038", bg: "rgba(194, 240, 56, 0.2)" },
 };
 
 export function StatusBadge({ estado }: { estado: EstadoRegistro }) {
