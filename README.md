@@ -158,14 +158,23 @@ Con lo anterior, dale **Deploy**. Vercel va a:
 
 ## Flujo funcional
 
-1. **Planeamiento** crea un requerimiento (Cod. Pro., Producto, Planta, Fecha, Motivo,
-   Lotes) → estado `Pendiente de Planeamiento`.
+1. **Planeamiento** crea un requerimiento (Cód. Producto, Producto, Planta 1/2, Fecha
+   de conciliación, Motivo, Materiales a conciliar, Asuntos regulatorios) → estado
+   `Pendiente de Planeamiento`. Puede editar o borrar el requerimiento mientras siga
+   en curso.
 2. Elige la ruta (**Generar receta de conciliación** / **Actualizar receta sin generar
-   conciliación**), escribe los correos destino en el campo de etiquetas y envía →
-   estado `En Revisión Técnica` + correo automático de nuevo requerimiento.
-3. **Documentación Técnica** completa Variantes / Ejecución / Observaciones, escribe
-   los correos de los interesados y marca como completada → estado `Receta Generada`
-   o `Actualización Completada` + correo automático de confirmación.
+   conciliación**); los destinatarios de la notificación se prellenan con todos los
+   usuarios y se envía → estado `En Revisión por Documentación Técnica` + correo
+   automático de nuevo requerimiento.
+3. **Documentación Técnica** completa Variantes / Ejecución / Observaciones y marca
+   como completada → estado `Entregada por Documentación Técnica` + correo de
+   confirmación; o, si no es posible generarla, la rechaza con un motivo → estado
+   `Rechazada por Documentación Técnica` (cierra el requerimiento y avisa a quien lo
+   creó).
+4. **Planeamiento** revisa la entrega y decide: **concluir** (estado `Concluida`,
+   cierre final) o **rechazar con motivo** (vuelve a `En Revisión por Documentación
+   Técnica` para que se rehaga).
 
 Todo el historial de cambios de estado queda auditado y visible en el detalle de cada
-registro.
+registro, junto con un stepper ("Ver flujo") que muestra en qué etapa está cada
+requerimiento en tiempo real.

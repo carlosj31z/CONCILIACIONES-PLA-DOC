@@ -7,8 +7,7 @@ export type TipoFlujo = (typeof TIPOS_FLUJO)[number];
 export const ESTADOS_REGISTRO = [
   "PENDIENTE_PLANEAMIENTO",
   "EN_REVISION_TECNICA",
-  "RECETA_GENERADA",
-  "ACTUALIZACION_COMPLETADA",
+  "ENTREGADA",
   "RECHAZADA_TECNICA",
   "CONCLUIDA",
 ] as const;
@@ -17,8 +16,7 @@ export type EstadoRegistro = (typeof ESTADOS_REGISTRO)[number];
 export const ESTADO_LABELS: Record<EstadoRegistro, string> = {
   PENDIENTE_PLANEAMIENTO: "Pendiente de Planeamiento",
   EN_REVISION_TECNICA: "En Revisión por Documentación Técnica",
-  RECETA_GENERADA: "Receta Generada",
-  ACTUALIZACION_COMPLETADA: "Actualización Completada",
+  ENTREGADA: "Entregada por Documentación Técnica",
   RECHAZADA_TECNICA: "Rechazada por Documentación Técnica",
   CONCLUIDA: "Concluida",
 };

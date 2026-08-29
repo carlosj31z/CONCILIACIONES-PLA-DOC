@@ -32,10 +32,17 @@ enum TipoFlujo {
 enum EstadoRegistro {
   PENDIENTE_PLANEAMIENTO // Creado por Planeamiento, datos base en edición
   EN_REVISION_TECNICA // Planeamiento definió la ruta y notificó a Doc. Técnica
-  RECETA_GENERADA // Doc. Técnica completó la ruta "Generar receta", pendiente de que Planeamiento la concluya
-  ACTUALIZACION_COMPLETADA // Doc. Técnica completó la ruta "Actualizar sin conciliación", pendiente de que Planeamiento la concluya
+  ENTREGADA // Doc. Técnica completó su parte (la ruta elegida vive en tipoFlujo), pendiente de que Planeamiento la concluya
   RECHAZADA_TECNICA // Doc. Técnica indicó que no pudo generar la receta, con motivo
   CONCLUIDA // Planeamiento dio por buena la receta/actualización: cierre final
+
+  // RECETA_GENERADA y ACTUALIZACION_COMPLETADA quedan reservados (ya no se
+  // usan desde la app: se fusionaron en ENTREGADA, que junto a tipoFlujo
+  // representa lo mismo con un estado menos). Postgres no permite borrar
+  // valores de un enum ya creado sin recrear el tipo; se dejan sin uso en
+  // vez de arriesgar esa migración contra datos reales.
+  RECETA_GENERADA
+  ACTUALIZACION_COMPLETADA
 }
 
 enum TriggerCorreo {

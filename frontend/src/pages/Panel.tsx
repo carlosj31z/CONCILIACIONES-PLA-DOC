@@ -7,8 +7,7 @@ import { ESTADO_LABELS, type ConciliationRecord, type EstadoRegistro } from "../
 const TONE: Record<EstadoRegistro, string> = {
   PENDIENTE_PLANEAMIENTO: "tone-pendiente",
   EN_REVISION_TECNICA: "tone-revision",
-  RECETA_GENERADA: "tone-receta",
-  ACTUALIZACION_COMPLETADA: "tone-actualizacion",
+  ENTREGADA: "tone-entregada",
   RECHAZADA_TECNICA: "tone-rechazada",
   CONCLUIDA: "tone-concluida",
 };
@@ -33,8 +32,7 @@ export function Panel() {
     const base: Record<EstadoRegistro, number> = {
       PENDIENTE_PLANEAMIENTO: 0,
       EN_REVISION_TECNICA: 0,
-      RECETA_GENERADA: 0,
-      ACTUALIZACION_COMPLETADA: 0,
+      ENTREGADA: 0,
       RECHAZADA_TECNICA: 0,
       CONCLUIDA: 0,
     };
@@ -52,7 +50,7 @@ export function Panel() {
   const recientesCompletados = useMemo(
     () =>
       registros
-        .filter((r) => r.estado === "RECETA_GENERADA" || r.estado === "ACTUALIZACION_COMPLETADA")
+        .filter((r) => r.estado === "ENTREGADA")
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .slice(0, 6),
     [registros]

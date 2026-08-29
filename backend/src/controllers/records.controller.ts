@@ -19,10 +19,9 @@ const ESTADOS_ELIMINABLES = [
   "PENDIENTE_PLANEAMIENTO",
   "EN_REVISION_TECNICA",
   "RECHAZADA_TECNICA",
-  "RECETA_GENERADA",
-  "ACTUALIZACION_COMPLETADA",
+  "ENTREGADA",
 ] as const;
-const ESTADOS_PENDIENTES_DECISION = ["RECETA_GENERADA", "ACTUALIZACION_COMPLETADA"] as const;
+const ESTADOS_PENDIENTES_DECISION = ["ENTREGADA"] as const;
 
 async function destinatariosOriginales(recordId: string): Promise<string[]> {
   const filas = await prisma.emailRecipient.findMany({
@@ -199,9 +198,9 @@ export async function actualizarRespuestaTecnica(req: Request, res: Response) {
 /**
  * Rol Documentación Técnica — mismo patrón que `decidirRuta`: al marcar la
  * tarea como completada, ingresa los correos de los interesados y el sistema
- * cambia el estado final (RECETA_GENERADA o ACTUALIZACION_COMPLETADA según
- * la ruta que eligió Planeamiento) y encola el correo de confirmación
- * (Trigger 2).
+ * cambia el estado a ENTREGADA (la ruta que eligió Planeamiento ya vive en
+ * tipoFlujo, no hace falta un estado por cada ruta) y encola el correo de
+ * confirmación (Trigger 2).
  */
 export async function completarTarea(req: Request, res: Response) {
   const { id } = req.params;
@@ -216,7 +215,7 @@ export async function completarTarea(req: Request, res: Response) {
   if (!existente.tipoFlujo) throw new HttpError(409, "El registro no tiene una ruta definida");
 
   const emails = normalizarDestinatarios(destinatarios);
-  const estadoFinal = existente.tipoFlujo === "GENERAR_RECETA" ? "RECETA_GENERADA" : "ACTUALIZACION_COMPLETADA";
+  const estadoFinal = "ENTREGADA";
 
   const { record, emailLogId } = await prisma.$transaction(async (tx) => {
     await tx.technicalResponse.upsert({

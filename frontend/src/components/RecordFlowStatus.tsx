@@ -39,7 +39,7 @@ function construirPasos(record: ConciliationRecord): { pasos: Step[]; rechazada:
       ? 0
       : estado === "EN_REVISION_TECNICA"
         ? 1
-        : estado === "RECETA_GENERADA" || estado === "ACTUALIZACION_COMPLETADA"
+        : estado === "ENTREGADA"
           ? 2
           : 3; // CONCLUIDA
 

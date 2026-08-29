@@ -9,14 +9,8 @@ import { useAuth } from "../context/AuthContext";
 import { ESTADO_LABELS, TIPO_FLUJO_LABELS, type ConciliationRecord, type DirectoryUser } from "../types";
 
 const ESTADOS_EDITABLES = ["PENDIENTE_PLANEAMIENTO", "EN_REVISION_TECNICA"];
-const ESTADOS_ELIMINABLES = [
-  "PENDIENTE_PLANEAMIENTO",
-  "EN_REVISION_TECNICA",
-  "RECHAZADA_TECNICA",
-  "RECETA_GENERADA",
-  "ACTUALIZACION_COMPLETADA",
-];
-const ESTADOS_PENDIENTES_DECISION = ["RECETA_GENERADA", "ACTUALIZACION_COMPLETADA"];
+const ESTADOS_ELIMINABLES = ["PENDIENTE_PLANEAMIENTO", "EN_REVISION_TECNICA", "RECHAZADA_TECNICA", "ENTREGADA"];
+const ESTADOS_PENDIENTES_DECISION = ["ENTREGADA"];
 
 export function RecordDetail() {
   const { id } = useParams<{ id: string }>();
@@ -90,7 +84,7 @@ export function RecordDetail() {
   // Al entrar en revisión técnica, prellena los destinatarios de la confirmación con todo Planeamiento.
   useEffect(() => {
     if (record?.estado === "EN_REVISION_TECNICA" && directorio.length > 0 && destinatarios.length === 0) {
-      setDestinatarios(directorio.filter((u) => u.role === "PLANEAMIENTO").map((u) => u.email));
+      setDestinatarios(directorio.map((u) => u.email));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.estado, directorio]);
@@ -400,7 +394,7 @@ export function RecordDetail() {
                       suggestions={directorio.map((u) => u.email)}
                       placeholder="Escribe un correo y presiona Enter…"
                     />
-                    <span className="hint">Se prellenó con todo el equipo de Planeamiento; ajusta si hace falta.</span>
+                    <span className="hint">Se prellenó con todos los usuarios; ajusta si hace falta.</span>
                   </div>
 
                   {error && <div className="form-error">{error}</div>}

@@ -34,8 +34,7 @@ export function NewRecord() {
       .get<DirectoryUser[]>("/users/directorio")
       .then((usuarios) => {
         setDirectorio(usuarios);
-        const docTecnica = usuarios.filter((u) => u.role === "DOC_TECNICA").map((u) => u.email);
-        setDestinatarios(docTecnica);
+        setDestinatarios(usuarios.map((u) => u.email));
       })
       .catch(() => {
         // El directorio es una comodidad (prellenar); si falla, el usuario igual puede escribir los correos a mano.
@@ -149,9 +148,7 @@ export function NewRecord() {
               suggestions={directorio.map((u) => u.email)}
               placeholder="Escribe un correo y presiona Enter…"
             />
-            <span className="hint">
-              Se prellenó con todo el equipo de Documentación Técnica; quita a quien no corresponda notificar.
-            </span>
+            <span className="hint">Se prellenó con todos los usuarios; quita a quien no corresponda notificar.</span>
           </div>
 
           {error && <div className="form-error">{error}</div>}

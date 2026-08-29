@@ -879,8 +879,7 @@ a {
 
 .stat-tile.tone-pendiente { background: linear-gradient(135deg, #ffd166, #ff8c00); }
 .stat-tile.tone-revision { background: linear-gradient(135deg, #5b9bff, #2148e6); }
-.stat-tile.tone-receta { background: linear-gradient(135deg, #4df08f, #08b452); }
-.stat-tile.tone-actualizacion { background: linear-gradient(135deg, #3ff0dc, #06a89a); }
+.stat-tile.tone-entregada { background: linear-gradient(135deg, #4df08f, #08b452); }
 .stat-tile.tone-rechazada { background: linear-gradient(135deg, #ff7a7a, #e0203a); }
 .stat-tile.tone-concluida { background: linear-gradient(135deg, #d5f542, #83d613); }
 .stat-tile.tone-total { background: linear-gradient(135deg, #eef2ff, #a0acd4); }
@@ -1087,6 +1086,8 @@ a {
 }
 
 .login-brand {
+  position: relative;
+  overflow: hidden;
   flex: 1.1;
   display: flex;
   flex-direction: column;
@@ -1094,11 +1095,88 @@ a {
   gap: 16px;
   padding: 48px 64px;
   background:
-    radial-gradient(760px 480px at 15% 20%, rgba(51, 102, 255, 0.16), transparent 60%),
+    radial-gradient(760px 480px at 15% 20%, rgba(51, 102, 255, 0.18), transparent 60%),
     radial-gradient(640px 420px at 85% 80%, rgba(52, 211, 153, 0.08), transparent 55%),
     #0e1118;
   border-right: 1px solid var(--color-border);
   animation: fade-in var(--duration-base) var(--ease-standard) both;
+}
+
+.login-motif {
+  position: absolute;
+  inset: -10% -10% -10% auto;
+  right: -8%;
+  width: 68%;
+  height: 120%;
+  opacity: 0.55;
+  z-index: 0;
+  mask-image: linear-gradient(90deg, transparent, black 35%);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 35%);
+}
+
+.login-motif-net line {
+  animation: motif-fade 6s var(--ease-in-out) infinite;
+}
+
+.login-motif-net circle {
+  animation: motif-drift 9s var(--ease-in-out) infinite;
+  transform-origin: center;
+}
+
+.login-motif-helix {
+  animation: motif-helix-shift 14s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes motif-fade {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes motif-drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes motif-helix-shift {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(45px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-motif-net line,
+  .login-motif-net circle,
+  .login-motif-helix {
+    animation: none;
+  }
+}
+
+.login-brand-content {
+  position: relative;
+  z-index: 1;
+}
+
+.login-company {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.login-company-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.login-company-logo {
+  height: 22px;
+  width: auto;
+  display: block;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 6px;
+  padding: 5px 10px;
 }
 
 .login-mark {
