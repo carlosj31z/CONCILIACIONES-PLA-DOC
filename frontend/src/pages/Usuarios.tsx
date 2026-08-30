@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { motion } from "framer-motion";
 import { api, ApiError } from "../api/client";
+import { FormMessage } from "../components/FormMessage";
 import { LoadingState, Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
+import { listContainer, listItem } from "../lib/motion";
 import { ROLES, ROLE_LABELS, type ManagedUser, type Role } from "../types";
 
 export function Usuarios() {
@@ -98,7 +101,7 @@ export function Usuarios() {
           </div>
         </div>
 
-        {error && <div className="form-error">{error}</div>}
+        <FormMessage>{error}</FormMessage>
 
         <div className="form-actions">
           <button className="btn btn-primary" type="submit" disabled={creando}>
@@ -122,11 +125,11 @@ export function Usuarios() {
                 <th>Estado</th>
               </tr>
             </thead>
-            <tbody>
+            <motion.tbody variants={listContainer} initial="initial" animate="animate">
               {usuarios.map((u) => {
                 const esYoMismo = u.id === yo?.id;
                 return (
-                  <tr key={u.id} style={{ cursor: "default" }}>
+                  <motion.tr key={u.id} variants={listItem} className="row-static">
                     <td className="producto-cell">{u.nombre}</td>
                     <td>{u.email}</td>
                     <td>{u.puesto ?? "—"}</td>
@@ -146,8 +149,7 @@ export function Usuarios() {
                     </td>
                     <td>
                       <button
-                        className="btn btn-secondary"
-                        style={{ padding: "6px 12px", fontSize: 12 }}
+                        className="btn btn-secondary btn-compact"
                         disabled={esYoMismo}
                         title={esYoMismo ? "No puedes desactivar tu propia cuenta" : undefined}
                         onClick={() => alternarActivo(u)}
@@ -155,10 +157,10 @@ export function Usuarios() {
                         {u.activo ? "Activo — desactivar" : "Inactivo — activar"}
                       </button>
                     </td>
-                  </tr>
+                  </motion.tr>
                 );
               })}
-            </tbody>
+            </motion.tbody>
           </table>
         )}
       </div>

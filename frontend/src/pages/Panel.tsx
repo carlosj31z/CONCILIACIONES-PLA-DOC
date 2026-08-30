@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { api } from "../api/client";
 import { LoadingState } from "../components/Spinner";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { useAuth } from "../context/AuthContext";
 import { formatDuracion, tiempoResolucionMs } from "../utils/duration";
+import { cardEntrance, listContainer, listItem, pressable } from "../lib/motion";
 import { ESTADO_LABELS, type ConciliationRecord, type EstadoRegistro } from "../types";
 
 const TONE: Record<EstadoRegistro, string> = {
@@ -20,6 +23,7 @@ function haceMenosDe(iso: string, horas: number): boolean {
 
 export function Panel() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const verTiempos = user?.role === "DOC_TECNICA" || user?.role === "ADMIN";
   const [registros, setRegistros] = useState<ConciliationRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +72,11 @@ export function Panel() {
 
   if (loading) return <LoadingState label="Cargando panel…" />;
 
+  /** Al tocar un tile de estado se salta a Seguimiento ya filtrado por ese estado. */
+  function verEstado(estado: EstadoRegistro) {
+    navigate(`/?estado=${estado}`);
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -77,67 +86,82 @@ export function Panel() {
         </div>
       </div>
 
-      <div className="stat-grid">
-        <div className="stat-tile tone-total">
-          <span className="value">{registros.length}</span>
+      <motion.div className="stat-grid" variants={listContainer} initial="initial" animate="animate">
+        <motion.div className="stat-tile tone-total" variants={listItem}>
+          <span className="value">
+            <AnimatedNumber value={registros.length} />
+          </span>
           <span className="label">Total de registros</span>
-        </div>
-        <div className="stat-tile tone-hoy">
-          <span className="value">{creadosHoy}</span>
+        </motion.div>
+
+        <motion.div className="stat-tile tone-hoy" variants={listItem}>
+          <span className="value">
+            <AnimatedNumber value={creadosHoy} />
+          </span>
           <span className="label">Creados últimas 24h</span>
-        </div>
+        </motion.div>
+
         {verTiempos && (
-          <div className="stat-tile tone-revision">
-            <span className="value">{tiempoPromedioResolucion !== null ? formatDuracion(tiempoPromedioResolucion) : "—"}</span>
+          <motion.div className="stat-tile tone-revision" variants={listItem}>
+            <span className="value">
+              {tiempoPromedioResolucion !== null ? formatDuracion(tiempoPromedioResolucion) : "—"}
+            </span>
             <span className="label">Tiempo promedio de resolución</span>
-          </div>
+          </motion.div>
         )}
+
         {(Object.keys(conteos) as EstadoRegistro[]).map((estado) => (
-          <div className={`stat-tile ${TONE[estado]}`} key={estado}>
-            <span className="value">{conteos[estado]}</span>
+          <motion.button
+            type="button"
+            className={`stat-tile stat-tile-link ${TONE[estado]}`}
+            key={estado}
+            variants={listItem}
+            onClick={() => verEstado(estado)}
+            title={`Ver registros: ${ESTADO_LABELS[estado]}`}
+            {...pressable}
+          >
+            <span className="value">
+              <AnimatedNumber value={conteos[estado]} />
+            </span>
             <span className="label">{ESTADO_LABELS[estado]}</span>
-          </div>
+          </motion.button>
         ))}
-      </div>
+      </motion.div>
 
       <div className="panel-grid">
-        <div className="card">
-          <h3 style={{ marginTop: 0, fontSize: 14, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            Últimos requerimientos creados
-          </h3>
+        <motion.div className="card" variants={cardEntrance} initial="initial" animate="animate">
+          <h3 className="card-eyebrow">Últimos requerimientos creados</h3>
           {recientesCreados.length === 0 && <p className="hint">Sin registros todavía.</p>}
-          <ul className="activity-list">
+          <motion.ul className="activity-list" variants={listContainer} initial="initial" animate="animate">
             {recientesCreados.map((r) => (
-              <li key={r.id}>
-                <Link to={`/registros/${r.id}`} className="title" style={{ textDecoration: "none" }}>
+              <motion.li key={r.id} variants={listItem}>
+                <Link to={`/registros/${r.id}`} className="title">
                   {r.producto}
                 </Link>
                 <div className="meta">
-                  {r.planta} · {r.creadoPor?.nombre ?? "—"} · {new Date(r.createdAt).toLocaleString("es-PE")}
+                  Planta {r.planta} · {r.creadoPor?.nombre ?? "—"} · {new Date(r.createdAt).toLocaleString("es-PE")}
                 </div>
-              </li>
+              </motion.li>
             ))}
-          </ul>
-        </div>
+          </motion.ul>
+        </motion.div>
 
-        <div className="card">
-          <h3 style={{ marginTop: 0, fontSize: 14, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            Últimas tareas completadas por Documentación Técnica
-          </h3>
+        <motion.div className="card" variants={cardEntrance} initial="initial" animate="animate">
+          <h3 className="card-eyebrow">Últimas tareas completadas por Documentación Técnica</h3>
           {recientesCompletados.length === 0 && <p className="hint">Sin tareas completadas todavía.</p>}
-          <ul className="activity-list">
+          <motion.ul className="activity-list" variants={listContainer} initial="initial" animate="animate">
             {recientesCompletados.map((r) => (
-              <li key={r.id}>
-                <Link to={`/registros/${r.id}`} className="title" style={{ textDecoration: "none" }}>
+              <motion.li key={r.id} variants={listItem}>
+                <Link to={`/registros/${r.id}`} className="title">
                   {r.producto}
                 </Link>
                 <div className="meta">
-                  {r.planta} · {ESTADO_LABELS[r.estado]} · {new Date(r.updatedAt).toLocaleString("es-PE")}
+                  Planta {r.planta} · {ESTADO_LABELS[r.estado]} · {new Date(r.updatedAt).toLocaleString("es-PE")}
                 </div>
-              </li>
+              </motion.li>
             ))}
-          </ul>
-        </div>
+          </motion.ul>
+        </motion.div>
       </div>
     </div>
   );

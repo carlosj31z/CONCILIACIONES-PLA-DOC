@@ -1,4 +1,4 @@
-import { ESTADO_LABELS, type EstadoRegistro } from "../types";
+import { ESTADO_LABELS, ESTADO_LABELS_CORTOS, type EstadoRegistro } from "../types";
 
 const STYLES: Record<EstadoRegistro, { fg: string; bg: string }> = {
   PENDIENTE_PLANEAMIENTO: { fg: "#ffb020", bg: "rgba(255, 164, 18, 0.2)" },
@@ -8,12 +8,27 @@ const STYLES: Record<EstadoRegistro, { fg: string; bg: string }> = {
   CONCLUIDA: { fg: "#c2f038", bg: "rgba(194, 240, 56, 0.2)" },
 };
 
-export function StatusBadge({ estado }: { estado: EstadoRegistro }) {
+interface StatusBadgeProps {
+  estado: EstadoRegistro;
+  /**
+   * Usa la etiqueta corta. Para espacios angostos (tarjetas en celular),
+   * donde la completa se cortaría con puntos suspensivos. El `title`
+   * conserva el nombre completo para quien pase el cursor o use un lector
+   * de pantalla.
+   */
+  compact?: boolean;
+}
+
+export function StatusBadge({ estado, compact }: StatusBadgeProps) {
   const { fg, bg } = STYLES[estado];
   return (
-    <span className="status-badge" style={{ color: fg, background: bg }}>
+    <span
+      className="status-badge"
+      style={{ color: fg, background: bg }}
+      title={ESTADO_LABELS[estado]}
+    >
       <span className="dot" />
-      {ESTADO_LABELS[estado]}
+      {compact ? ESTADO_LABELS_CORTOS[estado] : ESTADO_LABELS[estado]}
     </span>
   );
 }

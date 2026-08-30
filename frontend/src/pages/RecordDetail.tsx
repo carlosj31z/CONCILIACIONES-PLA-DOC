@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { api, ApiError } from "../api/client";
+import { cardEntrance, collapseVariants, pressable } from "../lib/motion";
 import { StatusBadge } from "../components/StatusBadge";
 import { EmailTagInput } from "../components/EmailTagInput";
 import { MaterialLookup } from "../components/MaterialLookup";
 import { RecetasConciliarSection, type NuevaReceta } from "../components/RecetasConciliarSection";
 import { RecordFlowStatus } from "../components/RecordFlowStatus";
+import { FormMessage } from "../components/FormMessage";
 import { LoadingState, Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { formatDuracion, tiempoResolucionMs } from "../utils/duration";
@@ -249,25 +252,39 @@ export function RecordDetail() {
             {new Date(record.fechaConciliacion).toLocaleDateString("es-PE")}
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="detail-actions">
           <StatusBadge estado={record.estado} />
-          <button className="btn btn-secondary" onClick={() => setVerFlujo((v) => !v)}>
+          <motion.button
+            className="btn btn-secondary"
+            onClick={() => setVerFlujo((v) => !v)}
+            aria-expanded={verFlujo}
+            {...pressable}
+          >
             {verFlujo ? "Ocultar flujo" : "Ver flujo"}
-          </button>
+          </motion.button>
           {puedeBorrar && (
-            <button className="btn btn-danger-ghost" onClick={borrar} disabled={borrando}>
+            <motion.button className="btn btn-danger-ghost" onClick={borrar} disabled={borrando} {...pressable}>
               {borrando && <Spinner />}
               {borrando ? "Borrando…" : "Borrar"}
-            </button>
+            </motion.button>
           )}
         </div>
       </div>
 
-      {verFlujo && (
-        <div className="card flow-status-card">
-          <RecordFlowStatus record={record} />
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {verFlujo && (
+          <motion.div
+            className="card flow-status-card"
+            variants={collapseVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            style={{ overflow: "hidden" }}
+          >
+            <RecordFlowStatus record={record} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="detail-grid">
         <div>
@@ -327,7 +344,7 @@ export function RecordDetail() {
                   </div>
                 </div>
 
-                {error && <div className="form-error">{error}</div>}
+                <FormMessage>{error}</FormMessage>
 
                 <div className="form-actions">
                   <button className="btn btn-secondary" type="button" onClick={cancelarEdicion} disabled={guardandoDatos}>
@@ -411,7 +428,7 @@ export function RecordDetail() {
                     <label>¿Por qué no se pudo generar la receta?</label>
                     <textarea value={motivoNoSePudo} onChange={(e) => setMotivoNoSePudo(e.target.value)} autoFocus />
                   </div>
-                  {error && <div className="form-error">{error}</div>}
+                  <FormMessage>{error}</FormMessage>
                   <div className="form-actions">
                     <button className="btn btn-secondary" type="button" onClick={() => setRechazandoTecnica(false)} disabled={enviandoRechazoTecnica}>
                       Cancelar
@@ -453,8 +470,8 @@ export function RecordDetail() {
                     <span className="hint">Se prellenó con todos los usuarios; ajusta si hace falta.</span>
                   </div>
 
-                  {error && <div className="form-error">{error}</div>}
-                  {aviso && <div className="hint">{aviso}</div>}
+                  <FormMessage>{error}</FormMessage>
+                  <FormMessage tone="hint">{aviso}</FormMessage>
 
                   <div className="form-actions">
                     <button className="btn btn-secondary" onClick={guardarBorrador} disabled={guardando} type="button">
@@ -493,7 +510,18 @@ export function RecordDetail() {
                 {!enRevision && record.estado === "PENDIENTE_PLANEAMIENTO" && (
                   <p className="hint">Este registro aún no fue enviado a revisión técnica.</p>
                 )}
-                {!puedeEditarTecnica && aviso && <div className="hint">{aviso}</div>}
+                {/*
+                  El aviso se muestra sin importar el rol. Antes estaba
+                  condicionado a !puedeEditarTecnica y eso ocultaba la
+                  confirmación justo a quien acababa de completar la tarea:
+                  al completarla el registro pasa a ENTREGADA, deja de estar
+                  "en revisión" y esta rama de solo lectura reemplaza al
+                  formulario — con la condición vieja, Documentación Técnica
+                  se quedaba sin ninguna señal de que la acción funcionó.
+                  Las dos ramas son excluyentes, así que no hay riesgo de que
+                  el mensaje aparezca dos veces.
+                */}
+                <FormMessage tone="hint">{aviso}</FormMessage>
               </>
             )}
           </div>
@@ -516,7 +544,7 @@ export function RecordDetail() {
                       autoFocus
                     />
                   </div>
-                  {error && <div className="form-error">{error}</div>}
+                  <FormMessage>{error}</FormMessage>
                   <div className="form-actions">
                     <button className="btn btn-secondary" type="button" onClick={() => setRechazandoPlaneamiento(false)} disabled={decidiendo}>
                       Cancelar
@@ -534,7 +562,7 @@ export function RecordDetail() {
                 </>
               ) : (
                 <>
-                  {error && <div className="form-error">{error}</div>}
+                  <FormMessage>{error}</FormMessage>
                   <div className="form-actions">
                     <button className="btn btn-ghost-danger" type="button" onClick={() => setRechazandoPlaneamiento(true)} disabled={decidiendo}>
                       Rechazar

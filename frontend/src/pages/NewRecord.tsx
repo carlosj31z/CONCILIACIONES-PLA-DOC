@@ -1,10 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
+import { motion } from "framer-motion";
 import { EmailTagInput } from "../components/EmailTagInput";
+import { FormMessage } from "../components/FormMessage";
 import { MaterialLookup } from "../components/MaterialLookup";
 import { RecetasConciliarSection, type NuevaReceta } from "../components/RecetasConciliarSection";
 import { Spinner } from "../components/Spinner";
+import { cardEntrance, pressable, springBouncy } from "../lib/motion";
 import { TIPO_FLUJO_LABELS, TIPOS_FLUJO, type ConciliationRecord, type DirectoryUser, type ListaConciliar, type TipoFlujo } from "../types";
 
 function hoyISO(): string {
@@ -93,8 +96,13 @@ export function NewRecord() {
 
   if (enviado) {
     return (
-      <div className="card" style={{ maxWidth: 520 }}>
-        <h1 style={{ fontSize: 18, marginTop: 0 }}>Requerimiento enviado a revisión técnica</h1>
+      <motion.div
+        className="card new-record-done"
+        variants={cardEntrance}
+        initial="initial"
+        animate="animate"
+      >
+        <h1 className="new-record-done-title">Requerimiento enviado a revisión técnica</h1>
         {emailFallido ? (
           <p className="form-error" style={{ marginTop: 0 }}>
             El registro se envió a revisión técnica, pero el correo automático a {destinatarios.length}{" "}
@@ -107,10 +115,10 @@ export function NewRecord() {
             trabajar sobre este registro.
           </p>
         )}
-        <button className="btn btn-primary" onClick={() => navigate(`/registros/${record!.id}`)}>
+        <motion.button className="btn btn-primary" onClick={() => navigate(`/registros/${record!.id}`)} {...pressable}>
           Ver registro
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
     );
   }
 
@@ -125,21 +133,35 @@ export function NewRecord() {
           </div>
         </div>
 
-        <form className="card" style={{ maxWidth: 640 }} onSubmit={handleEnviarARevision}>
+        <motion.form
+          className="card new-record-step2"
+          onSubmit={handleEnviarARevision}
+          variants={cardEntrance}
+          initial="initial"
+          animate="animate"
+        >
           <div className="form-field">
             <label>Ruta del requerimiento</label>
-            <div className="route-options">
+            <div className="route-options" role="radiogroup" aria-label="Ruta del requerimiento">
               {TIPOS_FLUJO.map((t) => (
-                <div
+                <motion.button
+                  type="button"
                   key={t}
+                  role="radio"
+                  aria-checked={tipoFlujo === t}
                   className={`route-card${tipoFlujo === t ? " selected" : ""}`}
                   onClick={() => setTipoFlujo(t)}
+                  {...pressable}
                 >
+                  {/* El borde de selección se desliza entre las dos opciones. */}
+                  {tipoFlujo === t && (
+                    <motion.span className="route-card-ring" layoutId="route-selected" transition={springBouncy} />
+                  )}
                   <strong>{TIPO_FLUJO_LABELS[t]}</strong>
                   {t === "GENERAR_RECETA"
                     ? "Genera una nueva receta de conciliación de materiales."
                     : "Actualiza la receta existente sin pasar por conciliación."}
-                </div>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -155,15 +177,20 @@ export function NewRecord() {
             <span className="hint">Se prellenó con todos los usuarios; quita a quien no corresponda notificar.</span>
           </div>
 
-          {error && <div className="form-error">{error}</div>}
+          <FormMessage>{error}</FormMessage>
 
           <div className="form-actions">
-            <button className="btn btn-primary" type="submit" disabled={!tipoFlujo || destinatarios.length === 0 || loading}>
+            <motion.button
+              className="btn btn-primary"
+              type="submit"
+              disabled={!tipoFlujo || destinatarios.length === 0 || loading}
+              {...pressable}
+            >
               {loading && <Spinner />}
               {loading ? "Enviando…" : "Enviar a Documentación Técnica"}
-            </button>
+            </motion.button>
           </div>
-        </form>
+        </motion.form>
       </div>
     );
   }
@@ -261,7 +288,7 @@ export function NewRecord() {
           </div>
         </div>
 
-        {error && <div className="form-error">{error}</div>}
+        <FormMessage>{error}</FormMessage>
 
         <div className="form-actions">
           <button className="btn btn-primary" type="submit" disabled={loading}>

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { api } from "../api/client";
+import { listContainer, listItem, popVariants } from "../lib/motion";
 
 interface MaterialResult {
   codigo: string;
@@ -82,25 +84,42 @@ export function MaterialLookup({ onSelect }: MaterialLookupProps) {
         onFocus={() => resultados.length > 0 && setAbierto(true)}
         placeholder="Buscar código o nombre en el Maestro de Materiales de SAP…"
       />
-      {abierto && (q.trim().length >= 2) && (
-        <div className="material-lookup-panel">
-          {buscando && <div className="material-lookup-msg">Buscando…</div>}
-          {!buscando && error && <div className="material-lookup-msg material-lookup-error">{error}</div>}
-          {!buscando && !error && resultados.length === 0 && (
-            <div className="material-lookup-msg">Sin coincidencias en el Maestro de Materiales.</div>
-          )}
-          {!buscando &&
-            resultados.map((r) => (
-              <button type="button" key={r.codigo} className="material-lookup-option" onClick={() => elegir(r)}>
-                <span className="material-lookup-code">{r.codigo}</span>
-                <span className="material-lookup-name">
-                  {r.producto || "Sin descripción"}
-                  {!r.terminado && r.tipo && <span className="material-lookup-tag">{r.tipo}</span>}
-                </span>
-              </button>
-            ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {abierto && q.trim().length >= 2 && (
+          <motion.div
+            className="material-lookup-panel"
+            variants={popVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            {buscando && <div className="material-lookup-msg">Buscando…</div>}
+            {!buscando && error && <div className="material-lookup-msg material-lookup-error">{error}</div>}
+            {!buscando && !error && resultados.length === 0 && (
+              <div className="material-lookup-msg">Sin coincidencias en el Maestro de Materiales.</div>
+            )}
+            {!buscando && resultados.length > 0 && (
+              <motion.div variants={listContainer} initial="initial" animate="animate">
+                {resultados.map((r) => (
+                  <motion.button
+                    type="button"
+                    key={r.codigo}
+                    className="material-lookup-option"
+                    onClick={() => elegir(r)}
+                    variants={listItem}
+                  >
+                    <span className="material-lookup-code">{r.codigo}</span>
+                    <span className="material-lookup-name">
+                      {r.producto || "Sin descripción"}
+                      {!r.terminado && r.tipo && <span className="material-lookup-tag">{r.tipo}</span>}
+                    </span>
+                  </motion.button>
+                ))}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

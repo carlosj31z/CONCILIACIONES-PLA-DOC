@@ -1,9 +1,14 @@
 -- AlterEnum: se agrega ENTREGADA, que fusiona RECETA_GENERADA y
 -- ACTUALIZACION_COMPLETADA (la ruta elegida ya vive en la columna
 -- tipoFlujo, así que el estado no necesita distinguirla).
-ALTER TYPE "EstadoRegistro" ADD VALUE 'ENTREGADA';
-
--- Migra cualquier registro existente a ENTREGADA. Los valores viejos quedan
--- declarados en el enum (Postgres no permite borrarlos sin recrear el tipo)
--- pero la app deja de producirlos desde este commit.
-UPDATE "ConciliationRecord" SET estado = 'ENTREGADA' WHERE estado IN ('RECETA_GENERADA', 'ACTUALIZACION_COMPLETADA');
+--
+-- El UPDATE que migra los registros existentes vive en la migración
+-- siguiente (…_fusionar_estado_entregada_datos) A PROPÓSITO: Postgres no
+-- permite usar un valor de enum recién agregado dentro de la misma
+-- transacción que lo agregó ("unsafe use of new value ... of enum type"),
+-- y Prisma ejecuta cada migración en una transacción. Separarlas es la
+-- forma soportada de hacerlo.
+--
+-- IF NOT EXISTS mantiene la migración idempotente para bases donde este
+-- ALTER ya se aplicó a mano antes de existir este archivo.
+ALTER TYPE "EstadoRegistro" ADD VALUE IF NOT EXISTS 'ENTREGADA';

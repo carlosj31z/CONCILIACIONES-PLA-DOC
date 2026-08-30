@@ -21,6 +21,21 @@ export const ESTADO_LABELS: Record<EstadoRegistro, string> = {
   CONCLUIDA: "Concluida",
 };
 
+/**
+ * Versión corta de cada estado, para lugares angostos (tarjetas en celular)
+ * donde la etiqueta completa se cortaría con puntos suspensivos —
+ * "En Revisión por Docu…" no dice nada más que "En revisión" y ocupa el
+ * doble. El contexto (una app de conciliaciones entre esas dos áreas) hace
+ * que el "por Documentación Técnica" se sobreentienda.
+ */
+export const ESTADO_LABELS_CORTOS: Record<EstadoRegistro, string> = {
+  PENDIENTE_PLANEAMIENTO: "Pendiente",
+  EN_REVISION_TECNICA: "En revisión",
+  ENTREGADA: "Entregada",
+  RECHAZADA_TECNICA: "Rechazada",
+  CONCLUIDA: "Concluida",
+};
+
 export const TIPO_FLUJO_LABELS: Record<TipoFlujo, string> = {
   GENERAR_RECETA: "Generar receta de conciliación",
   ACTUALIZAR_SIN_CONCILIACION: "Actualizar receta sin generar conciliación",

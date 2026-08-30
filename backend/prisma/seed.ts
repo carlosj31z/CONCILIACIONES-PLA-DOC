@@ -1,3 +1,7 @@
+// El CLI de Prisma carga .env solo, pero este script corre con tsx, que no
+// lo hace: sin esto, `npm run seed` falla con "Environment variable not
+// found: DATABASE_URL" aunque el .env esté bien configurado.
+import "dotenv/config";
 import { PrismaClient, type Role } from "@prisma/client";
 
 const prisma = new PrismaClient();

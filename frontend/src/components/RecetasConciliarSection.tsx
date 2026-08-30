@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { api } from "../api/client";
 import { Spinner } from "./Spinner";
+import { collapseVariants, listContainer, listItem, popVariants, pressable } from "../lib/motion";
 import type { ListaConciliar, OrigenListaConciliar } from "../types";
 
 interface ListaSapResult {
@@ -139,96 +141,163 @@ export function RecetasConciliarSection({ items, onAdd, onRemove, disabled }: Re
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onFocus={() => resultados.length > 0 && setAbierto(true)}
-            placeholder="Buscar producto o código para ver sus listas de materiales…"
+            // Corto a propósito: el texto largo se cortaba a media palabra en
+            // celular, que se ve como un error. La explicación completa va en
+            // el title y en el texto de ayuda debajo del campo.
+            placeholder="Buscar producto o código…"
+            title="Busca un producto en SAP para ver sus listas de materiales"
+            aria-label="Buscar listas de materiales por producto o código"
           />
-          {abierto && q.trim().length >= 2 && (
-            <div className="material-lookup-panel">
-              {buscando && <div className="material-lookup-msg">Buscando…</div>}
-              {!buscando && error && <div className="material-lookup-msg material-lookup-error">{error}</div>}
-              {!buscando && !error && resultados.length === 0 && (
-                <div className="material-lookup-msg">Sin listas de materiales para esa búsqueda.</div>
-              )}
-              {!buscando &&
-                resultados.map((r) => {
-                  const key = `${r.material}-${r.listaAlt}`;
-                  const agregada = yaAgregada(r);
-                  return (
-                    <div className="material-lookup-option receta-option" key={key}>
-                      <div>
-                        <span className="material-lookup-code">{r.material}</span>
-                        <span className="material-lookup-name">
-                          {etiquetaItem({ origen: "SAP", producto: r.producto, listaAlt: r.listaAlt, centro: r.centro, estado: r.estado })}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-secondary receta-add-btn"
-                        disabled={agregada || agregandoKey === key}
-                        onClick={() => agregarDeSap(r)}
-                      >
-                        {agregandoKey === key && <Spinner />}
-                        {agregada ? "Agregada" : agregandoKey === key ? "Agregando…" : "Agregar"}
-                      </button>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
+          <AnimatePresence>
+            {abierto && q.trim().length >= 2 && (
+              <motion.div
+                className="material-lookup-panel"
+                variants={popVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                {buscando && <div className="material-lookup-msg">Buscando…</div>}
+                {!buscando && error && <div className="material-lookup-msg material-lookup-error">{error}</div>}
+                {!buscando && !error && resultados.length === 0 && (
+                  <div className="material-lookup-msg">Sin listas de materiales para esa búsqueda.</div>
+                )}
+                {!buscando && resultados.length > 0 && (
+                  <motion.div variants={listContainer} initial="initial" animate="animate">
+                    {resultados.map((r) => {
+                      const key = `${r.material}-${r.listaAlt}`;
+                      const agregada = yaAgregada(r);
+                      return (
+                        <motion.div className="material-lookup-option receta-option" key={key} variants={listItem}>
+                          <div>
+                            <span className="material-lookup-code">{r.material}</span>
+                            <span className="material-lookup-name">
+                              {etiquetaItem({
+                                origen: "SAP",
+                                producto: r.producto,
+                                listaAlt: r.listaAlt,
+                                centro: r.centro,
+                                estado: r.estado,
+                              })}
+                            </span>
+                          </div>
+                          <motion.button
+                            type="button"
+                            className="btn btn-secondary receta-add-btn"
+                            disabled={agregada || agregandoKey === key}
+                            onClick={() => agregarDeSap(r)}
+                            {...pressable}
+                          >
+                            {agregandoKey === key && <Spinner />}
+                            {agregada ? "Agregada" : agregandoKey === key ? "Agregando…" : "Agregar"}
+                          </motion.button>
+                        </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 
       {!disabled && (
         <div style={{ marginTop: 10 }}>
-          {mostrarManual ? (
-            <div className="receta-manual-form">
-              <input
-                type="text"
-                value={manualTexto}
-                onChange={(e) => setManualTexto(e.target.value)}
-                placeholder="Describe la lista de materiales a mano…"
-                autoFocus
-              />
-              <button type="button" className="btn btn-secondary" onClick={() => setMostrarManual(false)} disabled={agregandoManual}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={agregarManual}
-                disabled={agregandoManual || manualTexto.trim().length < 2}
+          <AnimatePresence mode="wait" initial={false}>
+            {mostrarManual ? (
+              <motion.div
+                key="form"
+                className="receta-manual-form"
+                variants={collapseVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                style={{ overflow: "hidden" }}
               >
-                {agregandoManual && <Spinner />}
-                {agregandoManual ? "Agregando…" : "Agregar"}
-              </button>
-            </div>
-          ) : (
-            <button type="button" className="btn btn-secondary" onClick={() => setMostrarManual(true)}>
-              + Agregar manualmente
-            </button>
-          )}
+                <input
+                  type="text"
+                  value={manualTexto}
+                  onChange={(e) => setManualTexto(e.target.value)}
+                  placeholder="Describe la lista de materiales a mano…"
+                  autoFocus
+                />
+                <motion.button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setMostrarManual(false)}
+                  disabled={agregandoManual}
+                  {...pressable}
+                >
+                  Cancelar
+                </motion.button>
+                <motion.button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={agregarManual}
+                  disabled={agregandoManual || manualTexto.trim().length < 2}
+                  {...pressable}
+                >
+                  {agregandoManual && <Spinner />}
+                  {agregandoManual ? "Agregando…" : "Agregar"}
+                </motion.button>
+              </motion.div>
+            ) : (
+              <motion.button
+                key="toggle"
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setMostrarManual(true)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                {...pressable}
+              >
+                + Agregar manualmente
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
       )}
 
       <div className="receta-list">
-        {items.length === 0 && <p className="hint" style={{ margin: "10px 0 0" }}>Aún no se agregó ninguna lista de materiales.</p>}
-        {items.map((item) => (
-          <div className="receta-item" key={item.id}>
-            <span className={`receta-tag receta-tag-${item.origen.toLowerCase()}`}>{item.origen === "SAP" ? "SAP" : "Manual"}</span>
-            <span className="receta-item-label">{etiquetaItem(item)}</span>
-            {!disabled && (
-              <button
-                type="button"
-                className="receta-item-remove"
-                onClick={() => quitar(item.id)}
-                disabled={quitandoId === item.id}
-                aria-label="Quitar"
-                title="Quitar"
-              >
-                {quitandoId === item.id ? "…" : "×"}
-              </button>
-            )}
-          </div>
-        ))}
+        {items.length === 0 && (
+          <p className="hint" style={{ margin: "10px 0 0" }}>
+            Aún no se agregó ninguna lista de materiales.
+          </p>
+        )}
+        {/* `popLayout` hace que, al quitar una receta, las de abajo suban
+            deslizándose en vez de saltar de golpe al hueco. */}
+        <AnimatePresence mode="popLayout" initial={false}>
+          {items.map((item) => (
+            <motion.div
+              className="receta-item"
+              key={item.id}
+              layout
+              variants={listItem}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <span className={`receta-tag receta-tag-${item.origen.toLowerCase()}`}>
+                {item.origen === "SAP" ? "SAP" : "Manual"}
+              </span>
+              <span className="receta-item-label">{etiquetaItem(item)}</span>
+              {!disabled && (
+                <button
+                  type="button"
+                  className="receta-item-remove"
+                  onClick={() => quitar(item.id)}
+                  disabled={quitandoId === item.id}
+                  aria-label="Quitar"
+                  title="Quitar"
+                >
+                  {quitandoId === item.id ? "…" : "×"}
+                </button>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );

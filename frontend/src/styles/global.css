@@ -266,8 +266,28 @@ a {
 }
 
 .sidebar-nav a.active {
-  background: var(--color-primary-soft);
+  /* El fondo lo pinta .nav-active-bg (framer-motion, layoutId) para que se
+     deslice entre opciones; acá solo queda el color del texto. */
   color: #a7c6ff;
+}
+
+/*
+  Fondo del ítem de navegación activo. Es un elemento aparte, posicionado
+  de forma absoluta detrás del contenido, porque framer-motion necesita un
+  nodo propio que pueda mover con layoutId de una opción a otra.
+*/
+.sidebar-nav a,
+.mobile-tabbar a {
+  position: relative;
+  isolation: isolate;
+}
+
+.nav-active-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 8px;
+  background: var(--color-primary-soft);
 }
 
 .sidebar-nav .nav-divider {
@@ -644,22 +664,22 @@ a {
 }
 
 .route-card {
+  position: relative;
   border: 2px solid var(--color-border);
   border-radius: 10px;
   padding: 16px;
   cursor: pointer;
   font-size: 14px;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  background: none;
   color: var(--color-text-muted);
-  transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard),
-    transform var(--duration-fast) var(--ease-standard);
+  transition: border-color var(--duration-fast) var(--ease-standard);
 }
 
 .route-card:hover {
   border-color: #3a4152;
-}
-
-.route-card:active {
-  transform: scale(0.99);
 }
 
 .route-card strong {
@@ -669,8 +689,23 @@ a {
 }
 
 .route-card.selected {
-  border-color: var(--color-primary);
+  /* El borde y el fondo de la opción elegida los pinta .route-card-ring,
+     para que framer-motion pueda deslizarlos entre las dos opciones. */
+  border-color: transparent;
+}
+
+.route-card-ring {
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--color-primary);
+  border-radius: 10px;
   background: var(--color-primary-soft);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.route-card {
+  isolation: isolate;
 }
 
 /* --- Status badge (chip sólido, legible en fondo oscuro) --- */
@@ -970,6 +1005,12 @@ a {
   gap: 12px;
   margin-bottom: 20px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.filters input {
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .filters input,
@@ -980,6 +1021,11 @@ a {
   font-size: 13px;
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+.filters-clear {
+  padding: 8px 12px;
+  font-size: 12.5px;
 }
 
 .filters input:focus,
@@ -1125,6 +1171,165 @@ a {
   }
 }
 
+/*
+  --- Lista de registros en celular ---
+  Sustituye a la tabla por debajo de 760px: con 7-9 columnas, la tabla
+  obliga a desplazarse en horizontal y deja el estado (el dato que más se
+  consulta) fuera de pantalla. Cada registro pasa a ser una tarjeta que
+  apila lo mismo en vertical.
+*/
+.record-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.record-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  padding: 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-border-top);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 28px -22px rgba(0, 0, 0, 0.8);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .record-card {
+    background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+.record-card:active {
+  background: var(--color-surface-hover);
+}
+
+.record-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.record-card-producto {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+/* El badge de estado no se comprime aunque el nombre del producto sea largo.
+   Con la etiqueta corta (prop `compact`) ya entra sin recortarse. */
+.record-card-top .status-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+
+.record-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.record-card-ruta {
+  font-size: 12.5px;
+  color: var(--color-text);
+}
+
+.record-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+/* Espacio reservado mientras una ruta diferida (lazy) termina de cargarse. */
+.route-loading {
+  padding: 48px 0;
+}
+
+/*
+  Anillo de foco global para navegación con teclado.
+  `:focus-visible` (y no `:focus`) hace que aparezca al tabular pero no al
+  hacer clic con el mouse, que es cuando molesta. Sin esto, sobre este fondo
+  oscuro el contorno por defecto del navegador es casi invisible y quien
+  navega con teclado pierde de vista dónde está parado.
+*/
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Reemplaza al style inline que tenía el botón de ingresar. */
+.login-submit {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Estado + acciones en el encabezado del detalle de un registro. */
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Reemplazan a styles inline en Nuevo requerimiento. */
+.new-record-done {
+  max-width: 520px;
+}
+
+.new-record-done-title {
+  font-size: 18px;
+  margin-top: 0;
+}
+
+.new-record-step2 {
+  max-width: 640px;
+}
+
+/* Fila de tabla que no navega al hacer clic (p. ej. Usuarios, donde se
+   edita en la misma fila). */
+.data-table tbody tr.row-static {
+  cursor: default;
+}
+
+.data-table tbody tr.row-static:hover {
+  background: inherit;
+}
+
+/* Botón compacto dentro de celdas de tabla. */
+.btn-compact {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.sidebar-collapse-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* --- Stat tiles (Panel de actividades) --- */
 .stat-grid {
   display: grid;
@@ -1133,43 +1338,45 @@ a {
   margin-bottom: 28px;
 }
 
+/* La entrada escalonada la maneja framer-motion (listContainer/listItem en
+   Panel.tsx), no CSS: así el retardo se calcula por la cantidad real de
+   tiles en vez de con una lista fija de :nth-child. */
 .stat-tile {
   border-radius: 14px;
-  padding: 20px;
+  padding: 18px;
   color: #0c0e12;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-height: 96px;
+  min-height: 92px;
   justify-content: center;
-  transition: transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
-  animation: fade-in-up var(--duration-base) var(--ease-standard) both;
+  text-align: left;
+  font-family: inherit;
+  border: none;
+  transition: box-shadow var(--duration-fast) var(--ease-standard);
 }
 
-.stat-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 28px -18px rgba(0, 0, 0, 0.6);
+.stat-tile-link {
+  cursor: pointer;
 }
 
-.stat-grid .stat-tile:nth-child(1) { animation-delay: 0ms; }
-.stat-grid .stat-tile:nth-child(2) { animation-delay: 40ms; }
-.stat-grid .stat-tile:nth-child(3) { animation-delay: 80ms; }
-.stat-grid .stat-tile:nth-child(4) { animation-delay: 120ms; }
-.stat-grid .stat-tile:nth-child(5) { animation-delay: 160ms; }
-.stat-grid .stat-tile:nth-child(6) { animation-delay: 200ms; }
-.stat-grid .stat-tile:nth-child(7) { animation-delay: 240ms; }
-.stat-grid .stat-tile:nth-child(8) { animation-delay: 280ms; }
+.stat-tile-link:hover,
+.stat-tile-link:focus-visible {
+  box-shadow: 0 14px 28px -18px rgba(0, 0, 0, 0.6), inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
 
 .stat-tile .value {
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 800;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-tile .label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   opacity: 0.85;
+  line-height: 1.25;
 }
 
 .stat-tile.tone-pendiente { background: linear-gradient(135deg, #ffd166, #ff8c00); }
@@ -1203,14 +1410,32 @@ a {
 }
 
 .activity-list .title {
+  display: block;
   font-weight: 600;
   color: var(--color-text);
   margin-bottom: 2px;
+  text-decoration: none;
+}
+
+.activity-list .title:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .activity-list .meta {
   color: var(--color-text-muted);
   font-size: 12px;
+}
+
+/* Encabezado pequeño en versalitas, usado dentro de tarjetas del Panel. */
+.card-eyebrow {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* --- Detail --- */
@@ -1741,18 +1966,25 @@ a {
     gap: 2px;
     flex: 1;
     max-width: 96px;
+    /* 44px de alto mínimo: es el tamaño de destino táctil recomendado para
+       que el dedo acierte sin ampliar. */
+    min-height: 44px;
     padding: 6px 4px;
     border-radius: 12px;
     color: var(--color-text-muted);
     text-decoration: none;
     font-size: 10px;
     font-weight: 600;
-    transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+    transition: color var(--duration-fast) var(--ease-standard);
+  }
+
+  .mobile-tabbar .nav-active-bg {
+    border-radius: 12px;
   }
 
   .mobile-tabbar a.active {
+    /* Igual que en el sidebar: el fondo lo pinta .nav-active-bg. */
     color: #a7c6ff;
-    background: var(--color-primary-soft);
   }
 
   .main {
@@ -1760,9 +1992,21 @@ a {
     padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
 
+  /*
+    El encabezado sigue en fila en celular. Apilado (título + subtítulo +
+    botón a ancho completo) consumía casi 200px antes del primer dato, sobre
+    una pantalla de 844px donde arriba ya hay barra de app y saludo.
+  */
   .page-header {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .page-header h1 {
+    font-size: 18px;
   }
 
   .form-grid,
@@ -1777,13 +2021,55 @@ a {
     display: none;
   }
 
+  /*
+    Los filtros no se apilan uno por línea: en una pantalla de 844px de alto,
+    tres controles a ancho completo empujaban la primera fila de datos casi
+    fuera de vista. La búsqueda ocupa su propia línea (es la que más se usa)
+    y los dos selectores comparten la siguiente.
+  */
   .filters {
-    flex-direction: column;
+    gap: 8px;
   }
 
-  .filters input,
+  .filters input {
+    flex: 1 1 100%;
+  }
+
   .filters select {
-    width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .filters-clear {
+    flex: 1 1 100%;
+  }
+
+  /* Dos columnas: siete tiles a ancho completo obligaban a recorrer una
+     pantalla y media solo para ver los totales. */
+  .stat-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .stat-tile {
+    min-height: 78px;
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .stat-tile .value {
+    font-size: 24px;
+  }
+
+  .stat-tile .label {
+    font-size: 11.5px;
+  }
+
+  /* Los botones de acción del detalle no deben partirse en dos líneas. */
+  .page-header .btn {
+    white-space: nowrap;
   }
 
   .login-card {
