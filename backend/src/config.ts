@@ -8,10 +8,28 @@ function required(name: string, fallback?: string): string {
   return value;
 }
 
+/**
+ * Dirección pública de la app, la que se usa para armar el enlace "Ver
+ * registro" de los correos.
+ *
+ * Si APP_BASE_URL no está configurada se deducía localhost, y en producción
+ * eso dejaba los correos con un enlace que solo funciona en la computadora
+ * de quien desarrolla. Vercel publica el dominio del proyecto en sus propias
+ * variables, así que se usan como respaldo: primero el de producción y, en
+ * un despliegue de vista previa, el de ese despliegue.
+ */
+function urlPublicaPorDefecto(): string {
+  const produccion = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (produccion) return `https://${produccion}`;
+  const despliegue = process.env.VERCEL_URL;
+  if (despliegue) return `https://${despliegue}`;
+  return "http://localhost:5173";
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
-  appBaseUrl: process.env.APP_BASE_URL ?? "http://localhost:5173",
+  appBaseUrl: process.env.APP_BASE_URL ?? urlPublicaPorDefecto(),
 
   jwt: {
     secret: required("JWT_SECRET", "dev-secret-cambiar"),
