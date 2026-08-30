@@ -1,3 +1,4 @@
+import { Check } from "@phosphor-icons/react";
 import type { ConciliationRecord } from "../types";
 
 type StepState = "done" | "current" | "upcoming";
@@ -7,7 +8,7 @@ interface Step {
   state: StepState;
 }
 
-function construirPasos(record: ConciliationRecord): { pasos: Step[]; rechazada: boolean } {
+function construirPasos(record: ConciliationRecord): { pasos: Step[]; rechazada: boolean; concluida: boolean } {
   const { estado, tipoFlujo } = record;
   const etiquetaEntrega =
     tipoFlujo === "GENERAR_RECETA"
@@ -26,6 +27,7 @@ function construirPasos(record: ConciliationRecord): { pasos: Step[]; rechazada:
   if (estado === "RECHAZADA_TECNICA") {
     return {
       rechazada: true,
+      concluida: false,
       pasos: [
         { label: orden[0].label, state: "done" },
         { label: orden[1].label, state: "done" },
@@ -45,6 +47,7 @@ function construirPasos(record: ConciliationRecord): { pasos: Step[]; rechazada:
 
   return {
     rechazada: false,
+    concluida: estado === "CONCLUIDA",
     pasos: orden.map((p, i) => ({
       label: p.label,
       state: i < indiceActual ? "done" : i === indiceActual ? "current" : "upcoming",
@@ -53,27 +56,40 @@ function construirPasos(record: ConciliationRecord): { pasos: Step[]; rechazada:
 }
 
 export function RecordFlowStatus({ record }: { record: ConciliationRecord }) {
-  const { pasos, rechazada } = construirPasos(record);
+  const { pasos, rechazada, concluida } = construirPasos(record);
 
   return (
-    <div className={`flow-status${rechazada ? " flow-status-rechazada" : ""}`}>
-      {pasos.map((paso, i) => (
-        <div className={`flow-status-step flow-status-step--${paso.state}`} key={paso.label}>
-          <div className="flow-status-track">
-            {/*
-              El punto va centrado en su propia columna (para alinear bien con
-              la etiqueta de abajo), y cada línea conecta desde ahí hasta el
-              borde de la columna — la mitad "before" de este paso y la mitad
-              "after" del paso anterior forman, juntas, el tramo completo
-              entre dos puntos consecutivos.
-            */}
-            {i > 0 && <span className="flow-status-line flow-status-line--before" />}
-            <span className="flow-status-dot" />
-            {i < pasos.length - 1 && <span className="flow-status-line flow-status-line--after" />}
+    <div
+      className={`flow-status${rechazada ? " flow-status-rechazada" : ""}${concluida ? " flow-status-concluida" : ""}`}
+    >
+      {pasos.map((paso, i) => {
+        const esUltimo = i === pasos.length - 1;
+        return (
+          <div className={`flow-status-step flow-status-step--${paso.state}`} key={paso.label}>
+            <div className="flow-status-track">
+              {/*
+                El punto va centrado en su propia columna (para alinear bien con
+                la etiqueta de abajo), y cada línea conecta desde ahí hasta el
+                borde de la columna — la mitad "before" de este paso y la mitad
+                "after" del paso anterior forman, juntas, el tramo completo
+                entre dos puntos consecutivos.
+              */}
+              {i > 0 && <span className="flow-status-line flow-status-line--before" />}
+              <span className="flow-status-dot">
+                {/*
+                  Solo el punto final, y solo cuando la conciliación quedó
+                  Concluida (el cierre real, no "Entregada" en camino):
+                  un check dice "todo salió conforme" mejor que un punto
+                  más del mismo tamaño que los demás.
+                */}
+                {concluida && esUltimo && <Check className="flow-status-check" size={11} weight="bold" />}
+              </span>
+              {!esUltimo && <span className="flow-status-line flow-status-line--after" />}
+            </div>
+            <span className="flow-status-label">{paso.label}</span>
           </div>
-          <span className="flow-status-label">{paso.label}</span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

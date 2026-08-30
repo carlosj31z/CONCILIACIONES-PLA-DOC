@@ -14,6 +14,7 @@
   --color-danger: #ff4d5e;
   --color-danger-soft: rgba(255, 77, 94, 0.16);
   --color-success: #16e08a;
+  --color-success-soft: rgba(22, 224, 138, 0.2);
 
   --glass-bg: linear-gradient(155deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)), rgba(32, 37, 54, 0.5);
   --glass-border: rgba(255, 255, 255, 0.12);
@@ -1968,6 +1969,85 @@ a {
   }
   50% {
     box-shadow: 0 0 0 7px var(--color-primary-soft);
+  }
+}
+
+/*
+  Conciliación Concluida: todo el camino recorrido pasa de azul a verde
+  (es un estado distinto de "en curso", no solo un paso más), y el punto
+  final se agranda con un check adentro en vez de quedar del mismo tamaño
+  que los demás — es la confirmación de que quedó conforme, no un punto
+  de paso intermedio.
+*/
+/*
+  Selector con más clases a propósito: la mitad "before" de un tramo la
+  pinta ".flow-status-step--done + .flow-status-step .flow-status-line--before"
+  (3 clases), y con la misma cantidad de clases acá ganaba por poco margen
+  según el orden del archivo — frágil. Con .flow-status-step de más en la
+  cadena, esta gana siempre, sin depender de en qué línea del archivo quedó
+  cada una.
+*/
+.flow-status-concluida .flow-status-step .flow-status-track .flow-status-line {
+  background: var(--color-success);
+}
+
+.flow-status-concluida .flow-status-dot {
+  background: var(--color-success);
+}
+
+.flow-status-concluida .flow-status-step:last-child .flow-status-dot {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-bg);
+  box-shadow: 0 0 0 4px var(--color-success-soft);
+  /* Nada de pulso continuo: eso dice "esperando algo". Acá ya no hay nada
+     pendiente, así que la animación corre una sola vez al aparecer. */
+  animation: flow-check-pop 420ms var(--ease-out) both;
+}
+
+.flow-status-concluida .flow-status-step:last-child .flow-status-label {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.flow-status-check {
+  /* El ícono nace junto con el punto, pero un pelín después: que se note
+     que es "lo que aparece adentro", no parte del mismo salto. */
+  animation: flow-check-fade 180ms var(--ease-out) 240ms both;
+}
+
+@keyframes flow-check-pop {
+  0% {
+    transform: scale(0.5);
+    box-shadow: 0 0 0 0 var(--color-success-soft);
+  }
+  65% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px var(--color-success-soft);
+  }
+}
+
+@keyframes flow-check-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-status-concluida .flow-status-step:last-child .flow-status-dot,
+  .flow-status-check {
+    animation: none;
   }
 }
 
