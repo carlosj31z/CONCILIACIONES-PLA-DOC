@@ -82,3 +82,17 @@ export const actualizarUsuarioSchema = z.object({
   activo: z.boolean().optional(),
   puesto: z.string().trim().min(1).optional(),
 });
+
+export const crearNotaSchema = z.object({
+  contenido: z.string().trim().min(1, "La nota no puede estar vacía").max(5000),
+  visibilidad: z.enum(["PRIVADA", "COMPARTIDA"]).default("COMPARTIDA"),
+});
+
+export const actualizarNotaSchema = z
+  .object({
+    contenido: z.string().trim().min(1).max(5000).optional(),
+    visibilidad: z.enum(["PRIVADA", "COMPARTIDA"]).optional(),
+  })
+  .refine((d) => d.contenido !== undefined || d.visibilidad !== undefined, {
+    message: "No hay nada que actualizar",
+  });

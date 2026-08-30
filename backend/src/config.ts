@@ -47,6 +47,17 @@ export const config = {
 
   emailWorkerIntervalMs: Number(process.env.EMAIL_WORKER_INTERVAL_MS ?? 5000),
 
+  // Supabase Storage, donde viven los archivos adjuntos de las notas. Es el
+  // mismo proyecto de Supabase que la base de datos, pero se configura
+  // aparte porque necesita la URL del proyecto y la clave de servicio, no la
+  // cadena de conexión de Postgres. Sin esto la app funciona igual: solo se
+  // deshabilitan los adjuntos, con un mensaje que lo explica.
+  storage: {
+    url: process.env.SUPABASE_URL ?? "",
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+    bucket: process.env.SUPABASE_STORAGE_BUCKET ?? "notas-adjuntos",
+  },
+
   // Secreto que debe traer el Cron Job de Vercel para poder llamar a
   // /api/cron/process-emails. Si no está configurado, el endpoint queda
   // deshabilitado (nunca acepta llamadas anónimas).

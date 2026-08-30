@@ -98,6 +98,29 @@ export interface RegistroDuplicado {
   creadoPor: { nombre: string };
 }
 
+export type VisibilidadNota = "PRIVADA" | "COMPARTIDA";
+
+export interface NotaAdjunto {
+  id: string;
+  nombre: string;
+  tipo: string;
+  tamano: number;
+  createdAt: string;
+}
+
+export interface RecordNota {
+  id: string;
+  contenido: string;
+  visibilidad: VisibilidadNota;
+  createdAt: string;
+  updatedAt: string;
+  autorId: string;
+  autor: { nombre: string };
+  adjuntos: NotaAdjunto[];
+  /** La escribió quien está viendo: solo entonces se puede editar o borrar. */
+  esMia: boolean;
+}
+
 export interface RecordLote {
   id: string;
   numeroLote: string;

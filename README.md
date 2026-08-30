@@ -124,10 +124,37 @@ Preview si quieres probar PRs):
 | `CRON_SECRET` | Un secreto largo y aleatorio — Vercel lo agrega solo como header `Authorization: Bearer <valor>` en cada llamada de Cron |
 | `CORS_ORIGIN` | Opcional; con todo en el mismo dominio no hace falta, pero puedes fijar `APP_BASE_URL` igual por prolijidad |
 | `SAP_MAESTRO_SUPABASE_URL` / `SAP_MAESTRO_SUPABASE_ANON_KEY` | Opcional — solo si el proyecto de Supabase del Maestro de Materiales de SAP (usado por la búsqueda de Cód. Producto/Producto al crear un requerimiento) cambia de URL o de "publishable key"; por defecto usa los mismos valores que ya usa esa herramienta |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Proyecto de Supabase donde viven los archivos adjuntos de las notas (ver Paso 3b). Sin ellas la app funciona igual, pero adjuntar un archivo a una nota responde 503 |
+| `SUPABASE_STORAGE_BUCKET` | Opcional; por defecto `notas-adjuntos` |
 
 > `APP_BASE_URL` necesita la URL final de Vercel, que recién existe después del primer
 > deploy. Hacé un primer deploy con un valor provisorio, copiá la URL real que Vercel
 > asigna, actualizá la variable, y volvé a desplegar (Vercel → Deployments → *Redeploy*).
+
+### Paso 3b — Bucket para los archivos de las notas
+
+Las notas de un requerimiento admiten imágenes y documentos. Los archivos **no** se
+guardan en la base de datos (Postgres es caro para binarios y el límite de cuerpo de
+una función de Vercel es de 4.5 MB); van a Supabase Storage, y en la base solo queda
+la ruta.
+
+1. En Supabase → **Storage → New bucket**.
+   - Nombre: `notas-adjuntos` (o el que pongas en `SUPABASE_STORAGE_BUCKET`).
+   - **Public bucket: NO.** Tiene que quedar privado: los adjuntos de una nota privada
+     solo los puede abrir su autor, y eso se pierde si cualquiera con la URL entra.
+2. En Supabase → **Project Settings → API**, copia:
+   - **Project URL** → `SUPABASE_URL`.
+   - **`service_role` key** (la secreta, no la `anon`) → `SUPABASE_SERVICE_ROLE_KEY`.
+3. Cargá las dos en Vercel (Paso 3) y en tu `backend/.env` para desarrollo.
+
+> La `service_role` key salta las políticas de RLS, así que **solo puede vivir en el
+> backend**: nunca la pongas en el frontend ni en una variable `VITE_*`. Quien puede
+> abrir cada archivo lo decide el backend, mirando quién escribió la nota; el navegador
+> nunca recibe la clave, solo un enlace firmado que vence en una hora.
+
+El backend acepta imágenes (`png`, `jpeg`, `gif`, `webp`), PDF, Word, Excel y texto
+plano, hasta **4 MB por archivo**. Un archivo más grande devuelve un 413 con el motivo,
+y un tipo no permitido, un 415.
 
 ### Paso 4 — Deploy
 
@@ -138,8 +165,14 @@ Con lo anterior, dale **Deploy**. Vercel va a:
    vía el `postinstall` de `backend/package.json` — y `npm run build`, que compila
    TypeScript) y arrancarlo con `npm start` (`node dist/server.js`), como un servicio
    persistente escuchando en el puerto que Vercel le asigna.
-3. Aplicar los `rewrites` de `vercel.json`: todo `/api/*` va al servicio `backend`,
-   el resto va al servicio `frontend`.
+3. Aplicar los `rewrites` de `vercel.json`: todo `/api/*` va al servicio `backend`;
+   `/assets/*`, `/media/*` y `/favicon.png` se sirven tal cual desde el `frontend`; y
+   **cualquier otra dirección se resuelve con `/index.html`** de ese mismo servicio.
+   Esa última regla es la que hace que recargar una ruta como `/registros/nuevo` no
+   dé el 404 de Vercel: la ruta solo existe en el enrutador del navegador, no como
+   archivo, así que sin la reescritura el hosting busca un archivo que no está.
+   Como red de seguridad, el build también deja un `404.html` que devuelve al inicio
+   si por lo que sea el hosting llega a servir su propia página de "no encontrado".
 4. Registrar el Cron Job de `vercel.json` (`/api/cron/process-emails`).
 
 ### Paso 5 — Verificación post-deploy
@@ -179,3 +212,17 @@ Con lo anterior, dale **Deploy**. Vercel va a:
 Todo el historial de cambios de estado queda auditado y visible en el detalle de cada
 registro, junto con un stepper ("Ver flujo") que muestra en qué etapa está cada
 requerimiento en tiempo real.
+
+### Notas de un requerimiento
+
+En el detalle de cada requerimiento, tanto Planeamiento como Documentación Técnica
+pueden dejar **notas** con imágenes y documentos adjuntos:
+
+- **Compartida**: la ve cualquiera que abra ese requerimiento.
+- **Privada** (*Solo yo*): la ve únicamente quien la escribió. Se distingue en pantalla
+  por una franja lateral y su insignia.
+
+Editar el texto, cambiar la visibilidad, adjuntar archivos, quitarlos o borrar la nota
+**solo lo puede hacer quien la creó** — ni siquiera un administrador. La interfaz
+esconde esos botones en las notas ajenas, y el backend además lo rechaza con un 403,
+así que la restricción no depende de que el navegador se porte bien.

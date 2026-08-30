@@ -740,6 +740,49 @@ a {
 }
 
 /*
+  Aspecto base de un control envuelto en .field-glow que no está dentro de un
+  .form-field. Toda la apariencia de los campos (borde, fondo, tipografía)
+  colgaba de .form-field, así que un textarea suelto —el de las notas, por
+  ejemplo— se quedaba con el estilo por defecto del navegador: fuente
+  monoespaciada y fondo claro en medio de una tarjeta oscura.
+
+  Se excluye .tag-input porque ahí el envoltorio ya es el campo y el input de
+  adentro es solo el cursor donde se escribe la siguiente etiqueta: darle
+  borde y fondo propios dibujaría una caja dentro de otra.
+*/
+.field-glow:not(.tag-input) > input,
+.field-glow:not(.tag-input) > select,
+.field-glow:not(.tag-input) > textarea {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  transition: border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.field-glow:not(.tag-input) > input:focus,
+.field-glow:not(.tag-input) > select:focus,
+.field-glow:not(.tag-input) > textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.field-glow:not(.tag-input) > textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.field-glow:not(.tag-input) > textarea.textarea-auto {
+  resize: none;
+  overflow: hidden;
+  min-height: 74px;
+}
+
+/*
   Todo el efecto va detrás de @supports: sin mask-composite el
   pseudo-elemento no se recortaría a un anillo y taparía el campo con el
   degradado entero. Donde no hay soporte simplemente no hay luz — el campo
@@ -2591,4 +2634,268 @@ a {
   color: var(--color-text-muted);
   background: var(--color-bg-elevated);
   border-bottom: 1px solid var(--color-border);
+}
+
+/* ---------------------------------------------------------------------------
+   Notas del requerimiento
+
+   Anotaciones que Planeamiento y Documentación Técnica dejan sobre una
+   conciliación, con archivos adjuntos. Cada nota es de quien la escribió, y
+   eso tiene que verse: las privadas van marcadas con un borde lateral para
+   distinguirlas de un vistazo de las que ve todo el mundo.
+--------------------------------------------------------------------------- */
+
+.nota-nueva {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.nota-nueva > .field-glow > textarea {
+  min-height: 72px;
+}
+
+.nota-nueva-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.nota-visibilidad-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.nota-visibilidad-selector input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* El selector de archivo se dispara desde los botones de cada nota. */
+.nota-input-archivo {
+  display: none;
+}
+
+.nota-vacia {
+  margin: 0;
+}
+
+.nota-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nota {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 12px;
+  background: var(--color-bg-elevated);
+}
+
+/* Franja lateral: lo único que hay en pantalla que dice "esto no lo ve nadie más". */
+.nota-privada {
+  border-left: 3px solid var(--color-accent-2);
+  padding-left: 14px;
+}
+
+.nota-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nota-autor {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.nota-fecha {
+  margin: 0;
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.nota-visibilidad {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+}
+
+.nota-visibilidad-privada {
+  color: #c9a7ff;
+  background: rgba(139, 63, 251, 0.14);
+  border-color: rgba(139, 63, 251, 0.32);
+}
+
+/*
+  pre-wrap: la nota se escribió en un textarea, así que los saltos de línea
+  que puso quien la redactó son parte del texto. Sin esto, una lista de
+  observaciones se aplasta en un solo párrafo.
+*/
+.nota-texto {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.nota-adjuntos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nota-adjunto {
+  position: relative;
+  display: inline-flex;
+}
+
+.nota-adjunto-archivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.nota-adjunto-archivo:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+}
+
+.nota-adjunto-archivo:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.nota-adjunto-nombre {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nota-adjunto-peso {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.nota-adjunto-miniatura {
+  display: block;
+  width: 92px;
+  height: 92px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.nota-adjunto-miniatura:hover {
+  border-color: var(--color-primary);
+}
+
+.nota-adjunto-miniatura img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/*
+  La "x" se apoya sobre la esquina del adjunto. Va con fondo opaco a
+  propósito: encima de una miniatura, un fondo translúcido deja la foto de
+  abajo asomando y el aspa deja de leerse.
+*/
+.nota-adjunto-quitar {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.nota-adjunto-quitar:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.nota-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nota-acciones .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 760px) {
+  /*
+    En celular la fecha no cabe en la misma línea que el autor y la insignia;
+    dejarla en su propio renglón evita que el nombre se corte.
+  */
+  .nota-fecha {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+
+  .nota-acciones .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .nota-adjunto-nombre {
+    max-width: 150px;
+  }
 }

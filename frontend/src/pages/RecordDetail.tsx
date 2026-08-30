@@ -9,6 +9,7 @@ import { AutoResizeTextarea } from "../components/AutoResizeTextarea";
 import { EmailTagInput } from "../components/EmailTagInput";
 import { MaterialLookup } from "../components/MaterialLookup";
 import { RecetasConciliarSection, type NuevaReceta } from "../components/RecetasConciliarSection";
+import { NotasSection } from "../components/NotasSection";
 import { RecordFlowStatus } from "../components/RecordFlowStatus";
 import { FormMessage } from "../components/FormMessage";
 import { LoadingState, Spinner } from "../components/Spinner";
@@ -688,6 +689,17 @@ export function RecordDetail() {
               )}
             </div>
           )}
+
+          {/*
+            Notas del requerimiento: al final de la columna principal, después
+            de todo lo que define el estado del trámite. Son comentarios sobre
+            la conciliación, no parte del flujo, así que no deben empujar hacia
+            abajo lo que hay que decidir.
+          */}
+          <div className="card detail-section">
+            <h3>Notas</h3>
+            <NotasSection recordId={record.id} />
+          </div>
         </div>
 
         <div>

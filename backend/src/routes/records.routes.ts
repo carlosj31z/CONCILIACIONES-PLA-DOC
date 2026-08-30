@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth, requireRole } from "../middleware/auth";
 import {
@@ -17,6 +17,16 @@ import {
   rechazarPlaneamiento,
   rechazarTecnica,
 } from "../controllers/records.controller";
+import {
+  actualizarNota,
+  agregarAdjunto,
+  crearNota,
+  eliminarAdjunto,
+  eliminarNota,
+  enlaceAdjunto,
+  listarNotas,
+} from "../controllers/notas.controller";
+import { TAMANO_MAXIMO_BYTES } from "../services/storage.service";
 
 export const recordsRouter = Router();
 
@@ -65,3 +75,24 @@ recordsRouter.post(
   requireRole("DOC_TECNICA", "ADMIN"),
   asyncHandler(rechazarTecnica)
 );
+
+/*
+  Notas del requerimiento. No llevan requireRole: cualquiera que pueda ver el
+  registro puede dejar anotaciones, y quién puede editar cada nota lo decide
+  su autoría, no el rol (ver notas.controller.ts).
+
+  La subida de un adjunto llega como cuerpo binario en crudo, no como
+  formulario: es un solo archivo por petición y así se evita una librería de
+  multipart. El límite de express.raw es el mismo del servicio de storage.
+*/
+recordsRouter.get("/:id/notas", asyncHandler(listarNotas));
+recordsRouter.post("/:id/notas", asyncHandler(crearNota));
+recordsRouter.patch("/notas/:notaId", asyncHandler(actualizarNota));
+recordsRouter.delete("/notas/:notaId", asyncHandler(eliminarNota));
+recordsRouter.post(
+  "/notas/:notaId/adjuntos",
+  express.raw({ type: "*/*", limit: TAMANO_MAXIMO_BYTES }),
+  asyncHandler(agregarAdjunto)
+);
+recordsRouter.get("/notas/:notaId/adjuntos/:adjuntoId/enlace", asyncHandler(enlaceAdjunto));
+recordsRouter.delete("/notas/:notaId/adjuntos/:adjuntoId", asyncHandler(eliminarAdjunto));

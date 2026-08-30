@@ -46,4 +46,17 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  /**
+   * Sube un archivo como cuerpo binario en crudo. No usa FormData a
+   * propósito: es un solo archivo por petición, y así el backend lo recibe
+   * con express.raw sin necesitar una librería de multipart.
+   */
+  upload: <T>(path: string, archivo: File) =>
+    request<T>(path, {
+      method: "POST",
+      body: archivo,
+      // Se fija explícitamente para que el navegador no ponga el tipo del
+      // archivo: express.json() no debe intentar parsear esto.
+      headers: { "Content-Type": "application/octet-stream" },
+    }),
 };

@@ -52,6 +52,12 @@ enum TriggerCorreo {
   DECISION_PLANEAMIENTO // Planeamiento concluye o rechaza el trabajo de Documentación Técnica
 }
 
+// Quién puede leer una nota de un requerimiento.
+enum VisibilidadNota {
+  PRIVADA // Solo su autor
+  COMPARTIDA // Cualquiera que abra el requerimiento
+}
+
 enum EstadoEnvioCorreo {
   PENDIENTE
   ENVIADO
@@ -70,6 +76,7 @@ model User {
   registrosCreados      ConciliationRecord[] @relation("CreadoPor")
   respuestasCompletadas TechnicalResponse[]  @relation("CompletadoPor")
   historial             StatusHistory[]      @relation("CambiadoPor")
+  notas                 RecordNota[]         @relation("AutorNota")
 }
 
 // Entidad principal: un requerimiento de conciliación / actualización de receta.
@@ -100,6 +107,7 @@ model ConciliationRecord {
   correos          EmailLog[]
   historial        StatusHistory[]
   listasConciliar  RecordListaConciliar[]
+  notas            RecordNota[]
 
   @@index([estado])
   @@index([planta])
@@ -146,6 +154,48 @@ model RecordListaConciliar {
   createdAt DateTime @default(now())
 
   @@index([recordId])
+}
+
+// Anotaciones que Planeamiento o Documentación Técnica dejan sobre un
+// requerimiento: acuerdos, dudas, evidencias. Cada nota es de quien la
+// escribió — solo esa persona puede editarla, borrarla o tocar sus
+// archivos — y decide si la ve todo el mundo o solo ella.
+model RecordNota {
+  id       String             @id @default(cuid())
+  recordId String
+  record   ConciliationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  autorId String
+  autor   User   @relation("AutorNota", fields: [autorId], references: [id])
+
+  contenido   String
+  visibilidad VisibilidadNota @default(COMPARTIDA)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  adjuntos NotaAdjunto[]
+
+  @@index([recordId])
+  @@index([autorId])
+}
+
+// Imagen o documento adjunto a una nota. El archivo vive en Supabase
+// Storage; acá queda su ubicación dentro del bucket y los datos para
+// mostrarlo sin tener que ir a buscarlo.
+model NotaAdjunto {
+  id     String     @id @default(cuid())
+  notaId String
+  nota   RecordNota @relation(fields: [notaId], references: [id], onDelete: Cascade)
+
+  nombre String // Nombre original del archivo, tal como lo subió el usuario
+  tipo   String // MIME, para saber si se puede previsualizar
+  tamano Int // bytes
+  ruta   String // Ruta dentro del bucket de Storage
+
+  createdAt DateTime @default(now())
+
+  @@index([notaId])
 }
 
 // Campos exclusivos de Documentación Técnica (uno a uno con el registro).
