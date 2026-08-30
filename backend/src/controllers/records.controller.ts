@@ -4,6 +4,7 @@ import { prisma } from "../db";
 import { HttpError } from "../middleware/errorHandler";
 import { encolarCorreo, normalizarDestinatarios } from "../services/email.service";
 import { enviarCorreoInmediato } from "../services/email.worker";
+import { borrarAdjunto } from "../services/storage.service";
 import {
   actualizarRegistroSchema,
   actualizarTecnicaSchema,
@@ -458,7 +459,11 @@ export async function rechazarPlaneamiento(req: Request, res: Response) {
 
 /**
  * Rol Planeamiento (dueño) o ADMIN: elimina un requerimiento que todavía no
- * se cerró con éxito (CONCLUIDA queda protegida, es el cierre exitoso final).
+ * se cerró con éxito (CONCLUIDA queda protegida, es el cierre exitoso final
+ * para cualquiera). Un ADMIN puede forzar el borrado de un registro en
+ * cualquier estado -por ejemplo para limpiar pruebas antes de un lanzamiento-;
+ * en ese caso queda un rastro mínimo en EliminacionForzada, invisible en la
+ * app, con quién lo hizo y de qué registro se trataba.
  */
 export async function eliminarRegistro(req: Request, res: Response) {
   const { id } = req.params;
@@ -469,8 +474,34 @@ export async function eliminarRegistro(req: Request, res: Response) {
   if (existente.creadoPorId !== userId && req.user!.role !== "ADMIN") {
     throw new HttpError(403, "Solo quien creó el requerimiento puede borrarlo");
   }
-  if (!ESTADOS_ELIMINABLES.includes(existente.estado as (typeof ESTADOS_ELIMINABLES)[number])) {
+
+  const eliminable = ESTADOS_ELIMINABLES.includes(existente.estado as (typeof ESTADOS_ELIMINABLES)[number]);
+  if (!eliminable && req.user!.role !== "ADMIN") {
     throw new HttpError(409, "Un requerimiento ya concluido no se puede borrar");
+  }
+
+  // Los archivos de las notas viven en Supabase Storage, no en esta base de
+  // datos: la fila se borra en cascada al borrar el registro, pero el
+  // archivo en sí quedaría huérfano en el bucket para siempre si no se borra
+  // explícitamente primero.
+  const adjuntos = await prisma.notaAdjunto.findMany({
+    where: { nota: { recordId: id } },
+    select: { ruta: true },
+  });
+  await Promise.all(adjuntos.map((a) => borrarAdjunto(a.ruta)));
+
+  if (!eliminable) {
+    await prisma.eliminacionForzada.create({
+      data: {
+        registroId: existente.id,
+        codigoProducto: existente.codigoProducto,
+        producto: existente.producto,
+        estadoAlBorrar: existente.estado,
+        eliminadoPorId: userId,
+        eliminadoPorNombre: req.user!.nombre,
+        eliminadoPorEmail: req.user!.email,
+      },
+    });
   }
 
   await prisma.conciliationRecord.delete({ where: { id } });

@@ -198,6 +198,26 @@ model NotaAdjunto {
   @@index([notaId])
 }
 
+// Rastro de un borrado que solo un ADMIN puede hacer: un requerimiento en un
+// estado que normalmente no se puede borrar (ej. CONCLUIDA). No tiene FK al
+// registro -para entonces ya no existe- ni al usuario -si la cuenta se borra
+// después, esta fila tiene que seguir siendo legible-, así que los datos van
+// como snapshot de texto. Nada en la app expone un endpoint para leerla ni
+// borrarla: es solo la prueba de que la acción fue deliberada y de quién.
+model EliminacionForzada {
+  id     String @id @default(cuid())
+  registroId     String
+  codigoProducto String?
+  producto       String
+  estadoAlBorrar String
+
+  eliminadoPorId     String
+  eliminadoPorNombre String
+  eliminadoPorEmail  String
+
+  createdAt DateTime @default(now())
+}
+
 // Campos exclusivos de Documentación Técnica (uno a uno con el registro).
 model TechnicalResponse {
   id            String             @id @default(cuid())

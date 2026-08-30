@@ -170,7 +170,11 @@ export function RecordDetail() {
   const enRevision = record.estado === "EN_REVISION_TECNICA";
   const esDueno = user?.id === record.creadoPorId || user?.role === "ADMIN";
   const puedeEditarDatos = esDueno && ESTADOS_EDITABLES.includes(record.estado);
-  const puedeBorrar = esDueno && ESTADOS_ELIMINABLES.includes(record.estado);
+  // Un ADMIN puede forzar el borrado incluso de un registro Concluido (ej.
+  // para limpiar pruebas antes de un lanzamiento); nadie más puede tocar el
+  // cierre exitoso final. El backend deja un rastro de esa acción aparte.
+  const puedeBorrar = esDueno && (ESTADOS_ELIMINABLES.includes(record.estado) || user?.role === "ADMIN");
+  const borradoForzado = !ESTADOS_ELIMINABLES.includes(record.estado);
   const puedeDecidir = esDueno && ESTADOS_PENDIENTES_DECISION.includes(record.estado);
 
   async function guardarBorrador() {
@@ -257,7 +261,10 @@ export function RecordDetail() {
   }
 
   async function borrar() {
-    if (!confirm("¿Borrar este requerimiento? Esta acción no se puede deshacer.")) return;
+    const mensaje = borradoForzado
+      ? `Este requerimiento ya está ${ESTADO_LABELS[record!.estado].toLowerCase()} — borrarlo ahora salta esa protección. Se van a borrar también sus notas y archivos adjuntos. Esta acción no se puede deshacer. ¿Continuar?`
+      : "¿Borrar este requerimiento? Esta acción no se puede deshacer.";
+    if (!confirm(mensaje)) return;
     setError(null);
     setBorrando(true);
     try {
