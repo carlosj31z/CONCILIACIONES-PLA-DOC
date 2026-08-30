@@ -19,6 +19,7 @@ const Panel = lazy(() => import("./pages/Panel").then((m) => ({ default: m.Panel
 const NewRecord = lazy(() => import("./pages/NewRecord").then((m) => ({ default: m.NewRecord })));
 const RecordDetail = lazy(() => import("./pages/RecordDetail").then((m) => ({ default: m.RecordDetail })));
 const Usuarios = lazy(() => import("./pages/Usuarios").then((m) => ({ default: m.Usuarios })));
+const NotFound = lazy(() => import("./pages/NotFound").then((m) => ({ default: m.NotFound })));
 
 function PrivateArea() {
   const { user, loading } = useAuth();
@@ -56,7 +57,9 @@ function PrivateArea() {
               <Route path="/registros/nuevo" element={puedeCrear ? <NewRecord /> : <Navigate to="/" replace />} />
               <Route path="/registros/:id" element={<RecordDetail />} />
               <Route path="/usuarios" element={user.role === "ADMIN" ? <Usuarios /> : <Navigate to="/" replace />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              {/* Antes redirigía en silencio al inicio; ahora explica qué pasó
+                  (y vuelve solo al inicio a los 10 s). */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </motion.div>
