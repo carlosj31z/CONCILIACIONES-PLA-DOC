@@ -1005,8 +1005,12 @@ a {
      abajo mientras está abierto, lo cual es aceptable para una búsqueda
      breve y opcional como esta. */
   margin-top: 6px;
-  max-height: 260px;
+  /* Alto generoso: el desplegable ahora trae todas las coincidencias, no una
+     muestra de 20, y con 40vh entran ~8 filas sin tapar el resto del
+     formulario en celular. */
+  max-height: min(420px, 46vh);
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -2572,4 +2576,19 @@ a {
   .borrador-aviso .btn {
     width: 100%;
   }
+}
+
+/* Cuántas coincidencias trajo la búsqueda en SAP. */
+.material-lookup-conteo {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border);
 }

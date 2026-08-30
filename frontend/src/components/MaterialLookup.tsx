@@ -8,6 +8,12 @@ interface MaterialResult {
   producto: string;
 }
 
+interface RespuestaMateriales {
+  resultados: MaterialResult[];
+  /** El backend llegó a su tope de filas: hay más coincidencias sin mostrar. */
+  truncado: boolean;
+}
+
 interface MaterialLookupProps {
   onSelect: (material: MaterialResult) => void;
 }
@@ -28,6 +34,7 @@ interface MaterialLookupProps {
 export function MaterialLookup({ onSelect }: MaterialLookupProps) {
   const [q, setQ] = useState("");
   const [resultados, setResultados] = useState<MaterialResult[]>([]);
+  const [truncado, setTruncado] = useState(false);
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [abierto, setAbierto] = useState(false);
@@ -44,13 +51,15 @@ export function MaterialLookup({ onSelect }: MaterialLookupProps) {
     setError(null);
     const timeout = setTimeout(() => {
       api
-        .get<MaterialResult[]>(`/materiales/buscar?q=${encodeURIComponent(query)}`)
+        .get<RespuestaMateriales>(`/materiales/buscar?q=${encodeURIComponent(query)}`)
         .then((r) => {
-          setResultados(r);
+          setResultados(r.resultados);
+          setTruncado(r.truncado);
           setAbierto(true);
         })
         .catch(() => {
           setResultados([]);
+          setTruncado(false);
           setError("No se pudo consultar el Maestro de Materiales de SAP en este momento.");
         })
         .finally(() => setBuscando(false));
@@ -97,6 +106,12 @@ export function MaterialLookup({ onSelect }: MaterialLookupProps) {
             {!buscando && error && <div className="material-lookup-msg material-lookup-error">{error}</div>}
             {!buscando && !error && resultados.length === 0 && (
               <div className="material-lookup-msg">Sin productos terminados que coincidan en el Maestro de Materiales.</div>
+            )}
+            {!buscando && resultados.length > 0 && (
+              <div className="material-lookup-conteo">
+                {resultados.length === 1 ? "1 producto" : `${resultados.length} productos`}
+                {truncado && " · afina el texto para ver el resto"}
+              </div>
             )}
             {!buscando && resultados.length > 0 && (
               <motion.div variants={listContainer} initial="initial" animate="animate">

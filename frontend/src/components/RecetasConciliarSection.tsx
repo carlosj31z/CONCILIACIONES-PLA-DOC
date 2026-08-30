@@ -11,8 +11,14 @@ interface ListaSapResult {
   producto: string;
   centro: string;
   estado: string;
-  /** "Terminado" | "Envase" | "Acondicionado" (o el texto crudo si no calza con ninguna). */
+  /** "Envase" (código 5…) o "Acondicionado" (código 6…). */
   etapa: string;
+}
+
+interface RespuestaListas {
+  resultados: ListaSapResult[];
+  /** El backend llegó a su tope de filas: hay más coincidencias sin mostrar. */
+  truncado: boolean;
 }
 
 export type NuevaReceta = {
@@ -49,6 +55,7 @@ function etiquetaItem(item: ListaConciliar | (NuevaReceta & { id?: string })): s
 export function RecetasConciliarSection({ items, onAdd, onRemove, disabled }: RecetasConciliarSectionProps) {
   const [q, setQ] = useState("");
   const [resultados, setResultados] = useState<ListaSapResult[]>([]);
+  const [truncado, setTruncado] = useState(false);
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [abierto, setAbierto] = useState(false);
@@ -70,13 +77,15 @@ export function RecetasConciliarSection({ items, onAdd, onRemove, disabled }: Re
     setError(null);
     const timeout = setTimeout(() => {
       api
-        .get<ListaSapResult[]>(`/materiales/listas?q=${encodeURIComponent(query)}`)
+        .get<RespuestaListas>(`/materiales/listas?q=${encodeURIComponent(query)}`)
         .then((r) => {
-          setResultados(r);
+          setResultados(r.resultados);
+          setTruncado(r.truncado);
           setAbierto(true);
         })
         .catch(() => {
           setResultados([]);
+          setTruncado(false);
           setError("No se pudo consultar el Maestro de Listas de Materiales de SAP en este momento.");
         })
         .finally(() => setBuscando(false));
@@ -165,6 +174,12 @@ export function RecetasConciliarSection({ items, onAdd, onRemove, disabled }: Re
                 {!buscando && error && <div className="material-lookup-msg material-lookup-error">{error}</div>}
                 {!buscando && !error && resultados.length === 0 && (
                   <div className="material-lookup-msg">Sin listas de materiales para esa búsqueda.</div>
+                )}
+                {!buscando && resultados.length > 0 && (
+                  <div className="material-lookup-conteo">
+                    {resultados.length === 1 ? "1 receta" : `${resultados.length} recetas`}
+                    {truncado && " · afina el texto para ver el resto"}
+                  </div>
                 )}
                 {!buscando && resultados.length > 0 && (
                   <motion.div variants={listContainer} initial="initial" animate="animate">
