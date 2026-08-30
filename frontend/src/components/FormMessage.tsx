@@ -1,11 +1,15 @@
+import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { collapseVariants } from "../lib/motion";
 
 interface FormMessageProps {
-  /** Texto a mostrar; si es null/undefined/"" no se renderiza nada. */
-  children: string | null | undefined;
-  tone?: "error" | "hint";
+  /** Contenido a mostrar; si es null/undefined/"" no se renderiza nada. Acepta JSX para el tono "warning" (avisos con enlaces). */
+  children: ReactNode;
+  tone?: "error" | "hint" | "warning";
 }
+
+const CLASE_POR_TONO = { error: "form-error", hint: "hint", warning: "form-warning" } as const;
+const ROL_POR_TONO = { error: "alert", hint: "status", warning: "status" } as const;
 
 /**
  * Mensaje de error o confirmación dentro de un formulario, que aparece y
@@ -22,8 +26,8 @@ export function FormMessage({ children, tone = "error" }: FormMessageProps) {
     <AnimatePresence initial={false}>
       {children ? (
         <motion.div
-          className={tone === "error" ? "form-error" : "hint"}
-          role={tone === "error" ? "alert" : "status"}
+          className={CLASE_POR_TONO[tone]}
+          role={ROL_POR_TONO[tone]}
           variants={collapseVariants}
           initial="initial"
           animate="animate"

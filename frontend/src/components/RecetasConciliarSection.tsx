@@ -11,6 +11,8 @@ interface ListaSapResult {
   producto: string;
   centro: string;
   estado: string;
+  /** "Terminado" | "Envase" | "Acondicionado" (o el texto crudo si no calza con ninguna). */
+  etapa: string;
 }
 
 export type NuevaReceta = {
@@ -33,7 +35,7 @@ interface RecetasConciliarSectionProps {
 
 function etiquetaItem(item: ListaConciliar | (NuevaReceta & { id?: string })): string {
   if (item.origen === "MANUAL") return item.descripcion || "—";
-  const partes = [item.producto, `Lista ${item.listaAlt || "1"}`, item.centro, item.estado].filter(Boolean);
+  const partes = [item.producto, `Alt. ${item.listaAlt || "1"}`, item.centro, item.estado].filter(Boolean);
   return partes.join(" · ");
 }
 
@@ -136,18 +138,20 @@ export function RecetasConciliarSection({ items, onAdd, onRemove, disabled }: Re
     <div>
       {!disabled && (
         <div className="material-lookup" ref={wrapRef}>
-          <input
-            type="text"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onFocus={() => resultados.length > 0 && setAbierto(true)}
-            // Corto a propósito: el texto largo se cortaba a media palabra en
-            // celular, que se ve como un error. La explicación completa va en
-            // el title y en el texto de ayuda debajo del campo.
-            placeholder="Buscar producto o código…"
-            title="Busca un producto en SAP para ver sus listas de materiales"
-            aria-label="Buscar listas de materiales por producto o código"
-          />
+          <div className="field-glow">
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onFocus={() => resultados.length > 0 && setAbierto(true)}
+              // Corto a propósito: el texto largo se cortaba a media palabra en
+              // celular, que se ve como un error. La explicación completa va en
+              // el title y en el texto de ayuda debajo del campo.
+              placeholder="Buscar producto o código…"
+              title="Busca un producto en SAP para ver sus listas de materiales"
+              aria-label="Buscar listas de materiales por producto o código"
+            />
+          </div>
           <AnimatePresence>
             {abierto && q.trim().length >= 2 && (
               <motion.div
@@ -179,6 +183,9 @@ export function RecetasConciliarSection({ items, onAdd, onRemove, disabled }: Re
                                 centro: r.centro,
                                 estado: r.estado,
                               })}
+                              {r.etapa && r.etapa !== "Terminado" && (
+                                <span className="material-lookup-tag">{r.etapa}</span>
+                              )}
                             </span>
                           </div>
                           <motion.button
@@ -215,13 +222,15 @@ export function RecetasConciliarSection({ items, onAdd, onRemove, disabled }: Re
                 exit="exit"
                 style={{ overflow: "hidden" }}
               >
-                <input
-                  type="text"
-                  value={manualTexto}
-                  onChange={(e) => setManualTexto(e.target.value)}
-                  placeholder="Describe la lista de materiales a mano…"
-                  autoFocus
-                />
+                <div className="field-glow">
+                  <input
+                    type="text"
+                    value={manualTexto}
+                    onChange={(e) => setManualTexto(e.target.value)}
+                    placeholder="Describe la lista de materiales a mano…"
+                    autoFocus
+                  />
+                </div>
                 <motion.button
                   type="button"
                   className="btn btn-secondary"

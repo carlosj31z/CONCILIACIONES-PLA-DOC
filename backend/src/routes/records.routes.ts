@@ -5,6 +5,7 @@ import {
   actualizarRegistro,
   actualizarRespuestaTecnica,
   agregarListaConciliar,
+  buscarDuplicados,
   completarTarea,
   concluirRegistro,
   crearRegistro,
@@ -22,6 +23,8 @@ export const recordsRouter = Router();
 recordsRouter.use(requireAuth);
 
 recordsRouter.get("/", asyncHandler(listarRegistros));
+// Antes de "/:id": si no, Express la confunde con un registro de id "duplicados".
+recordsRouter.get("/duplicados", asyncHandler(buscarDuplicados));
 recordsRouter.get("/:id", asyncHandler(obtenerRegistro));
 
 // Planeamiento

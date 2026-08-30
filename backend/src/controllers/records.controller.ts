@@ -477,6 +477,44 @@ export async function eliminarRegistro(req: Request, res: Response) {
   res.status(204).send();
 }
 
+/** Estados que cuentan como "todavía activo" para el aviso de duplicados: todo salvo el cierre exitoso final. */
+const ESTADOS_ACTIVOS_DUPLICADO = [
+  "PENDIENTE_PLANEAMIENTO",
+  "EN_REVISION_TECNICA",
+  "ENTREGADA",
+  "RECHAZADA_TECNICA",
+] as const;
+
+/**
+ * Rol Planeamiento: mientras se llena "Nuevo requerimiento" (o se edita uno
+ * existente), avisa si ya hay otro requerimiento activo para el mismo
+ * producto — por código si se conoce, si no por nombre — para que quien
+ * solicita note que probablemente ya fue pedido antes de duplicarlo. No
+ * bloquea nada: solo informa.
+ */
+export async function buscarDuplicados(req: Request, res: Response) {
+  const { codigoProducto, producto, excluirId } = req.query as Record<string, string | undefined>;
+  const codigo = codigoProducto?.trim();
+  const nombre = producto?.trim();
+
+  if (!codigo && (!nombre || nombre.length < 3)) {
+    return res.json([]);
+  }
+
+  const registros = await prisma.conciliationRecord.findMany({
+    where: {
+      id: excluirId ? { not: excluirId } : undefined,
+      estado: { in: [...ESTADOS_ACTIVOS_DUPLICADO] },
+      ...(codigo ? { codigoProducto: { equals: codigo, mode: "insensitive" } } : { producto: { contains: nombre, mode: "insensitive" } }),
+    },
+    select: { id: true, producto: true, codigoProducto: true, estado: true, createdAt: true, creadoPor: { select: { nombre: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+
+  res.json(registros);
+}
+
 export async function listarRegistros(req: Request, res: Response) {
   const { estado, planta, q } = req.query as Record<string, string | undefined>;
 

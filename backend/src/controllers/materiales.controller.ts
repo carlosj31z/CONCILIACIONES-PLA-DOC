@@ -38,23 +38,48 @@ async function sapFetch<T>(path: string): Promise<T> {
   return (await resp.json()) as T;
 }
 
-/**
- * El Maestro de Materiales incluye de todo (producto terminado, materia
- * prima, material de envase y empaque, etc.), pero en Conciliaciones el
- * campo "Producto" siempre se refiere a un producto terminado. Se detecta
- * por el texto de "Denominación tipo material" del export de SAP en vez de
- * por un código exacto (p.ej. "ZPT"), porque ese código puede variar entre
- * plantas/configuraciones, mientras que la palabra "Terminado" en la
- * denominación es estable.
- */
-function esProductoTerminado(data: Record<string, unknown> | null): boolean {
-  const tipo = data?.["Denominación tipo material"];
-  return typeof tipo === "string" && /terminad/i.test(tipo);
-}
-
 function tipoMaterialLabel(data: Record<string, unknown> | null): string {
   const tipo = data?.["Denominación tipo material"];
   return typeof tipo === "string" ? tipo : "";
+}
+
+/**
+ * El Maestro de Materiales incluye de todo (producto terminado, materia
+ * prima, material de envase, material de acondicionado/empaque, etc.), y
+ * estas tres funciones lo clasifican por el texto de "Denominación tipo
+ * material" del export de SAP en vez de por un código exacto (p.ej. "ZPT"),
+ * porque ese código puede variar entre plantas/configuraciones mientras que
+ * la palabra en la denominación ("Terminado", "Envase", "Acondicionado") es
+ * estable.
+ */
+function esProductoTerminado(data: Record<string, unknown> | null): boolean {
+  return /terminad/i.test(tipoMaterialLabel(data));
+}
+
+function esEtapaEnvase(data: Record<string, unknown> | null): boolean {
+  return /envas/i.test(tipoMaterialLabel(data));
+}
+
+function esEtapaAcondicionado(data: Record<string, unknown> | null): boolean {
+  return /acondicionad|empaque/i.test(tipoMaterialLabel(data));
+}
+
+/**
+ * Para "Recetas a conciliar" el universo es más amplio que solo productos
+ * terminados: en un proceso de conciliación pueden entrar también listas de
+ * materiales de las etapas intermedias de envase y acondicionado (una
+ * receta multinivel donde el envasado o el empaque tiene su propia lista).
+ * El Maestro de Materiales sigue siendo la única fuente de tipos.
+ */
+function calificaParaListaConciliar(data: Record<string, unknown> | null): boolean {
+  return esProductoTerminado(data) || esEtapaEnvase(data) || esEtapaAcondicionado(data);
+}
+
+function etapaLabel(data: Record<string, unknown> | null): string {
+  if (esProductoTerminado(data)) return "Terminado";
+  if (esEtapaEnvase(data)) return "Envase";
+  if (esEtapaAcondicionado(data)) return "Acondicionado";
+  return tipoMaterialLabel(data);
 }
 
 /**
@@ -93,18 +118,17 @@ export async function buscarMateriales(req: Request, res: Response) {
 
   const unicas = await buscarCandidatosMaterial(termino);
 
-  // Productos terminados primero (lo que Planeamiento casi siempre busca en
-  // Conciliaciones), y detrás el resto (materia prima, envase y empaque,
-  // etc.) — no se ocultan del todo, por si alguna vez sí hace falta uno de
-  // esos códigos.
+  // El campo "Producto" del requerimiento siempre es un producto terminado:
+  // a diferencia de "Recetas a conciliar" (que sí admite envase y
+  // acondicionado), acá se filtra estricto — materia prima, envase y
+  // empaque u otros códigos no deben aparecer nunca en este buscador.
   const terminados = unicas.filter((f) => esProductoTerminado(f.data));
-  const otros = unicas.filter((f) => !esProductoTerminado(f.data));
 
-  const resultado = [...terminados, ...otros].slice(0, CANTIDAD_RESULTADOS).map((f) => ({
+  const resultado = terminados.slice(0, CANTIDAD_RESULTADOS).map((f) => ({
     codigo: f.material,
     producto: f.texto_material || "",
     tipo: tipoMaterialLabel(f.data),
-    terminado: esProductoTerminado(f.data),
+    terminado: true,
   }));
 
   res.json(resultado);
@@ -115,8 +139,10 @@ export async function buscarMateriales(req: Request, res: Response) {
  * Materiales de SAP, para la sección "Recetas a conciliar" del
  * requerimiento. Se busca por producto (código o nombre, igual que
  * `buscarMateriales`) y luego se traen las listas de materiales de esos
- * productos — una lista de materiales siempre pertenece a un producto
- * terminado, así que primero se resuelve el producto y después sus listas.
+ * productos. A diferencia del buscador de "Producto" del requerimiento, acá
+ * el universo no se limita a productos terminados: una conciliación puede
+ * involucrar también las listas de las etapas intermedias de envase y de
+ * acondicionado (`calificaParaListaConciliar`).
  */
 export async function buscarListasConciliar(req: Request, res: Response) {
   const termino = limpiarTermino(String(req.query.q ?? "").trim());
@@ -125,13 +151,14 @@ export async function buscarListasConciliar(req: Request, res: Response) {
   }
 
   const candidatos = await buscarCandidatosMaterial(termino);
-  const terminados = candidatos.filter((f) => esProductoTerminado(f.data));
-  // Si nada calza como "terminado" (Maestro incompleto, denominación
-  // distinta, etc.) se sigue con todos los candidatos en vez de devolver
-  // una lista vacía sin explicación.
-  const productos = terminados.length > 0 ? terminados : candidatos;
+  const calificados = candidatos.filter((f) => calificaParaListaConciliar(f.data));
+  // Si nada calza con ninguna de las tres etapas (Maestro incompleto,
+  // denominación distinta, etc.) se sigue con todos los candidatos en vez
+  // de devolver una lista vacía sin explicación.
+  const productos = calificados.length > 0 ? calificados : candidatos;
 
   const nombrePorCodigo = new Map(productos.map((p) => [p.material, p.texto_material || ""]));
+  const etapaPorCodigo = new Map(productos.map((p) => [p.material, etapaLabel(p.data)]));
   const codigos = productos.map((p) => p.material);
   if (codigos.length === 0) {
     return res.json([]);
@@ -148,6 +175,7 @@ export async function buscarListasConciliar(req: Request, res: Response) {
     producto: nombrePorCodigo.get(f.material) || "",
     centro: f.centro || "",
     estado: f.estado || "",
+    etapa: etapaPorCodigo.get(f.material) || "",
   }));
 
   res.json(resultado);

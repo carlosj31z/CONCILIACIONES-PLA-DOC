@@ -6,8 +6,6 @@ import { listContainer, listItem, popVariants } from "../lib/motion";
 interface MaterialResult {
   codigo: string;
   producto: string;
-  tipo: string;
-  terminado: boolean;
 }
 
 interface MaterialLookupProps {
@@ -22,10 +20,10 @@ interface MaterialLookupProps {
  * que siguen siendo editables normalmente por si el código no existe en el
  * Maestro o hace falta ajustarlo.
  *
- * El Maestro trae de todo (producto terminado, materia prima, envase y
- * empaque…), pero acá casi siempre se busca un producto terminado — el
- * backend ya los prioriza; cuando aparece algo que no lo es, se etiqueta
- * con su tipo para que no se confunda con un producto terminado.
+ * El Maestro trae de todo (producto terminado, materia prima, envase,
+ * acondicionado…), pero el campo "Producto" del requerimiento siempre es un
+ * producto terminado — el backend filtra estricto, así que acá nunca
+ * aparece otra cosa.
  */
 export function MaterialLookup({ onSelect }: MaterialLookupProps) {
   const [q, setQ] = useState("");
@@ -77,13 +75,15 @@ export function MaterialLookup({ onSelect }: MaterialLookupProps) {
 
   return (
     <div className="material-lookup" ref={wrapRef}>
-      <input
-        type="text"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onFocus={() => resultados.length > 0 && setAbierto(true)}
-        placeholder="Buscar código o nombre en el Maestro de Materiales de SAP…"
-      />
+      <div className="field-glow">
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onFocus={() => resultados.length > 0 && setAbierto(true)}
+          placeholder="Buscar código o nombre en el Maestro de Materiales de SAP…"
+        />
+      </div>
       <AnimatePresence>
         {abierto && q.trim().length >= 2 && (
           <motion.div
@@ -96,7 +96,7 @@ export function MaterialLookup({ onSelect }: MaterialLookupProps) {
             {buscando && <div className="material-lookup-msg">Buscando…</div>}
             {!buscando && error && <div className="material-lookup-msg material-lookup-error">{error}</div>}
             {!buscando && !error && resultados.length === 0 && (
-              <div className="material-lookup-msg">Sin coincidencias en el Maestro de Materiales.</div>
+              <div className="material-lookup-msg">Sin productos terminados que coincidan en el Maestro de Materiales.</div>
             )}
             {!buscando && resultados.length > 0 && (
               <motion.div variants={listContainer} initial="initial" animate="animate">
@@ -109,10 +109,7 @@ export function MaterialLookup({ onSelect }: MaterialLookupProps) {
                     variants={listItem}
                   >
                     <span className="material-lookup-code">{r.codigo}</span>
-                    <span className="material-lookup-name">
-                      {r.producto || "Sin descripción"}
-                      {!r.terminado && r.tipo && <span className="material-lookup-tag">{r.tipo}</span>}
-                    </span>
+                    <span className="material-lookup-name">{r.producto || "Sin descripción"}</span>
                   </motion.button>
                 ))}
               </motion.div>

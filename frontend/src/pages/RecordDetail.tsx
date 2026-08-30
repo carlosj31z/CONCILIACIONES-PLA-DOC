@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { api, ApiError } from "../api/client";
 import { cardEntrance, collapseVariants, pressable } from "../lib/motion";
 import { StatusBadge } from "../components/StatusBadge";
+import { AutoResizeTextarea } from "../components/AutoResizeTextarea";
 import { EmailTagInput } from "../components/EmailTagInput";
 import { MaterialLookup } from "../components/MaterialLookup";
 import { RecetasConciliarSection, type NuevaReceta } from "../components/RecetasConciliarSection";
@@ -12,7 +13,13 @@ import { FormMessage } from "../components/FormMessage";
 import { LoadingState, Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { formatDuracion, tiempoResolucionMs } from "../utils/duration";
-import { ESTADO_LABELS, TIPO_FLUJO_LABELS, type ConciliationRecord, type DirectoryUser } from "../types";
+import {
+  ESTADO_LABELS,
+  TIPO_FLUJO_LABELS,
+  type ConciliationRecord,
+  type DirectoryUser,
+  type RegistroDuplicado,
+} from "../types";
 
 const ESTADOS_EDITABLES = ["PENDIENTE_PLANEAMIENTO", "EN_REVISION_TECNICA"];
 const ESTADOS_ELIMINABLES = ["PENDIENTE_PLANEAMIENTO", "EN_REVISION_TECNICA", "RECHAZADA_TECNICA", "ENTREGADA"];
@@ -55,6 +62,31 @@ export function RecordDetail() {
 
   const [borrando, setBorrando] = useState(false);
   const [verFlujo, setVerFlujo] = useState(false);
+
+  const [duplicados, setDuplicados] = useState<RegistroDuplicado[]>([]);
+
+  useEffect(() => {
+    if (!editando || !id) {
+      setDuplicados([]);
+      return;
+    }
+    const codigo = codigoProducto.trim();
+    const nombre = producto.trim();
+    if (!codigo && nombre.length < 3) {
+      setDuplicados([]);
+      return;
+    }
+    const params = new URLSearchParams({ excluirId: id });
+    if (codigo) params.set("codigoProducto", codigo);
+    else params.set("producto", nombre);
+    const timeout = setTimeout(() => {
+      api
+        .get<RegistroDuplicado[]>(`/records/duplicados?${params.toString()}`)
+        .then(setDuplicados)
+        .catch(() => setDuplicados([]));
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [editando, id, codigoProducto, producto]);
 
   function cargarDatosEdicion(r: ConciliationRecord) {
     setCodigoProducto(r.codigoProducto ?? "");
@@ -313,36 +345,72 @@ export function RecordDetail() {
                   </div>
                   <div className="form-field">
                     <label>Cód. Producto</label>
-                    <input type="text" value={codigoProducto} onChange={(e) => setCodigoProducto(e.target.value)} />
+                    <div className="field-glow">
+                      <input type="text" value={codigoProducto} onChange={(e) => setCodigoProducto(e.target.value)} />
+                    </div>
                   </div>
                   <div className="form-field">
                     <label>Planta</label>
-                    <select value={planta} onChange={(e) => setPlanta(e.target.value)}>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                    </select>
+                    <div className="field-glow">
+                      <select value={planta} onChange={(e) => setPlanta(e.target.value)}>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="form-field span-2">
                     <label>Producto</label>
-                    <input type="text" value={producto} onChange={(e) => setProducto(e.target.value)} required />
+                    <div className="field-glow">
+                      <input type="text" value={producto} onChange={(e) => setProducto(e.target.value)} required />
+                    </div>
                   </div>
                   <div className="form-field">
                     <label>Fecha de conciliación</label>
-                    <input type="date" value={fechaConciliacion} onChange={(e) => setFechaConciliacion(e.target.value)} required />
+                    <div className="field-glow">
+                      <input type="date" value={fechaConciliacion} onChange={(e) => setFechaConciliacion(e.target.value)} required />
+                    </div>
                   </div>
                   <div className="form-field span-2">
                     <label>Motivo de conciliación</label>
-                    <textarea value={motivoConciliacion} onChange={(e) => setMotivoConciliacion(e.target.value)} required />
+                    <div className="field-glow">
+                      <AutoResizeTextarea value={motivoConciliacion} onChange={(e) => setMotivoConciliacion(e.target.value)} required />
+                    </div>
                   </div>
                   <div className="form-field span-2">
                     <label>Materiales a conciliar</label>
-                    <textarea value={materialesAConciliar} onChange={(e) => setMaterialesAConciliar(e.target.value)} required />
+                    <div className="field-glow">
+                      <AutoResizeTextarea value={materialesAConciliar} onChange={(e) => setMaterialesAConciliar(e.target.value)} required />
+                    </div>
                   </div>
                   <div className="form-field span-2">
                     <label>Asuntos regulatorios</label>
-                    <textarea value={asuntosRegulatorios} onChange={(e) => setAsuntosRegulatorios(e.target.value)} />
+                    <div className="field-glow">
+                      <AutoResizeTextarea value={asuntosRegulatorios} onChange={(e) => setAsuntosRegulatorios(e.target.value)} />
+                    </div>
                   </div>
                 </div>
+
+                <FormMessage tone="warning">
+                  {duplicados.length > 0 ? (
+                    <>
+                      <strong>
+                        {duplicados.length === 1
+                          ? "Ya existe otra conciliación activa para este producto:"
+                          : `Ya existen ${duplicados.length} otras conciliaciones activas para este producto:`}
+                      </strong>
+                      <ul className="form-warning-list">
+                        {duplicados.map((d) => (
+                          <li key={d.id}>
+                            <Link to={`/registros/${d.id}`} target="_blank" rel="noreferrer">
+                              {d.producto} {d.codigoProducto ? `(${d.codigoProducto})` : ""}
+                            </Link>{" "}
+                            — {ESTADO_LABELS[d.estado]}, solicitada por {d.creadoPor.nombre}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </FormMessage>
 
                 <FormMessage>{error}</FormMessage>
 
@@ -426,7 +494,9 @@ export function RecordDetail() {
                 <>
                   <div className="form-field">
                     <label>¿Por qué no se pudo generar la receta?</label>
-                    <textarea value={motivoNoSePudo} onChange={(e) => setMotivoNoSePudo(e.target.value)} autoFocus />
+                    <div className="field-glow">
+                      <AutoResizeTextarea value={motivoNoSePudo} onChange={(e) => setMotivoNoSePudo(e.target.value)} autoFocus />
+                    </div>
                   </div>
                   <FormMessage>{error}</FormMessage>
                   <div className="form-actions">
@@ -448,15 +518,21 @@ export function RecordDetail() {
                 <>
                   <div className="form-field">
                     <label>Variantes</label>
-                    <textarea value={variantes} onChange={(e) => setVariantes(e.target.value)} />
+                    <div className="field-glow">
+                      <AutoResizeTextarea value={variantes} onChange={(e) => setVariantes(e.target.value)} />
+                    </div>
                   </div>
                   <div className="form-field">
                     <label>Ejecución</label>
-                    <textarea value={ejecucion} onChange={(e) => setEjecucion(e.target.value)} />
+                    <div className="field-glow">
+                      <AutoResizeTextarea value={ejecucion} onChange={(e) => setEjecucion(e.target.value)} />
+                    </div>
                   </div>
                   <div className="form-field">
                     <label>Observaciones</label>
-                    <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
+                    <div className="field-glow">
+                      <AutoResizeTextarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
+                    </div>
                   </div>
 
                   <div className="form-field">
@@ -538,11 +614,13 @@ export function RecordDetail() {
                 <>
                   <div className="form-field">
                     <label>Motivo del rechazo</label>
-                    <textarea
-                      value={motivoRechazoPlaneamiento}
-                      onChange={(e) => setMotivoRechazoPlaneamiento(e.target.value)}
-                      autoFocus
-                    />
+                    <div className="field-glow">
+                      <AutoResizeTextarea
+                        value={motivoRechazoPlaneamiento}
+                        onChange={(e) => setMotivoRechazoPlaneamiento(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
                   </div>
                   <FormMessage>{error}</FormMessage>
                   <div className="form-actions">

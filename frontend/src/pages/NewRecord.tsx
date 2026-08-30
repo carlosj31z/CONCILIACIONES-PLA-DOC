@@ -1,14 +1,24 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { motion } from "framer-motion";
+import { AutoResizeTextarea } from "../components/AutoResizeTextarea";
 import { EmailTagInput } from "../components/EmailTagInput";
 import { FormMessage } from "../components/FormMessage";
 import { MaterialLookup } from "../components/MaterialLookup";
 import { RecetasConciliarSection, type NuevaReceta } from "../components/RecetasConciliarSection";
 import { Spinner } from "../components/Spinner";
 import { cardEntrance, pressable, springBouncy } from "../lib/motion";
-import { TIPO_FLUJO_LABELS, TIPOS_FLUJO, type ConciliationRecord, type DirectoryUser, type ListaConciliar, type TipoFlujo } from "../types";
+import {
+  ESTADO_LABELS,
+  TIPO_FLUJO_LABELS,
+  TIPOS_FLUJO,
+  type ConciliationRecord,
+  type DirectoryUser,
+  type ListaConciliar,
+  type RegistroDuplicado,
+  type TipoFlujo,
+} from "../types";
 
 function hoyISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -26,6 +36,29 @@ export function NewRecord() {
   const [materialesAConciliar, setMaterialesAConciliar] = useState("");
   const [asuntosRegulatorios, setAsuntosRegulatorios] = useState("");
   const [listasConciliar, setListasConciliar] = useState<ListaConciliar[]>([]);
+  const [duplicados, setDuplicados] = useState<RegistroDuplicado[]>([]);
+
+  // Mientras se llena el producto, avisa (sin bloquear) si ya hay un
+  // requerimiento activo para el mismo código o nombre — para que quien
+  // solicita note que probablemente ya fue pedido antes de duplicarlo.
+  useEffect(() => {
+    const codigo = codigoProducto.trim();
+    const nombre = producto.trim();
+    if (!codigo && nombre.length < 3) {
+      setDuplicados([]);
+      return;
+    }
+    const params = new URLSearchParams();
+    if (codigo) params.set("codigoProducto", codigo);
+    else params.set("producto", nombre);
+    const timeout = setTimeout(() => {
+      api
+        .get<RegistroDuplicado[]>(`/records/duplicados?${params.toString()}`)
+        .then(setDuplicados)
+        .catch(() => setDuplicados([]));
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [codigoProducto, producto]);
 
   // Paso 2: decisión de flujo + notificación.
   const [record, setRecord] = useState<ConciliationRecord | null>(null);
@@ -206,86 +239,129 @@ export function NewRecord() {
       </div>
 
       <form className="card" onSubmit={handleCrear}>
-        <div className="form-grid">
-          <div className="form-field span-2">
-            <label>Buscar en el Maestro de Materiales (SAP)</label>
-            <MaterialLookup
-              onSelect={(m) => {
-                setCodigoProducto(m.codigo);
-                setProducto(m.producto);
-              }}
-            />
-            <span className="hint">Opcional: elige un resultado para autocompletar Cód. Producto y Producto desde SAP.</span>
-          </div>
-          <div className="form-field">
-            <label htmlFor="codigoProducto">Cód. Producto</label>
-            <input id="codigoProducto" type="text" value={codigoProducto} onChange={(e) => setCodigoProducto(e.target.value)} />
-          </div>
-          <div className="form-field">
-            <label htmlFor="planta">Planta</label>
-            <select id="planta" value={planta} onChange={(e) => setPlanta(e.target.value)} required>
-              <option value="1">1</option>
-              <option value="2">2</option>
-            </select>
-          </div>
-
-          <div className="form-field span-2">
-            <label htmlFor="producto">Producto</label>
-            <input id="producto" type="text" value={producto} onChange={(e) => setProducto(e.target.value)} required />
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="fecha">Fecha de conciliación</label>
-            <input
-              id="fecha"
-              type="date"
-              value={fechaConciliacion}
-              onChange={(e) => setFechaConciliacion(e.target.value)}
-              required
-            />
-            <span className="hint">Por defecto, la fecha de hoy.</span>
+        <div className="form-section">
+          <h2 className="form-section-title">Producto</h2>
+          <div className="form-grid">
+            <div className="form-field span-2">
+              <label>Buscar en el Maestro de Materiales (SAP)</label>
+              <MaterialLookup
+                onSelect={(m) => {
+                  setCodigoProducto(m.codigo);
+                  setProducto(m.producto);
+                }}
+              />
+              <span className="hint">Opcional: elige un resultado para autocompletar Cód. Producto y Producto desde SAP.</span>
+            </div>
+            <div className="form-field">
+              <label htmlFor="codigoProducto">Cód. Producto</label>
+              <div className="field-glow">
+                <input id="codigoProducto" type="text" value={codigoProducto} onChange={(e) => setCodigoProducto(e.target.value)} />
+              </div>
+            </div>
+            <div className="form-field">
+              <label htmlFor="planta">Planta</label>
+              <div className="field-glow">
+                <select id="planta" value={planta} onChange={(e) => setPlanta(e.target.value)} required>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-field span-2">
+              <label htmlFor="producto">Producto</label>
+              <div className="field-glow">
+                <input id="producto" type="text" value={producto} onChange={(e) => setProducto(e.target.value)} required />
+              </div>
+            </div>
           </div>
 
-          <div className="form-field span-2">
-            <label htmlFor="motivo">Motivo de conciliación</label>
-            <textarea
-              id="motivo"
-              value={motivoConciliacion}
-              onChange={(e) => setMotivoConciliacion(e.target.value)}
-              required
-            />
-          </div>
+          <FormMessage tone="warning">
+            {duplicados.length > 0 ? (
+              <>
+                <strong>
+                  {duplicados.length === 1
+                    ? "Ya existe una conciliación activa para este producto:"
+                    : `Ya existen ${duplicados.length} conciliaciones activas para este producto:`}
+                </strong>
+                <ul className="form-warning-list">
+                  {duplicados.map((d) => (
+                    <li key={d.id}>
+                      <Link to={`/registros/${d.id}`} target="_blank" rel="noreferrer">
+                        {d.producto} {d.codigoProducto ? `(${d.codigoProducto})` : ""}
+                      </Link>{" "}
+                      — {ESTADO_LABELS[d.estado]}, solicitada por {d.creadoPor.nombre}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </FormMessage>
+        </div>
 
-          <div className="form-field span-2">
-            <label htmlFor="materiales">Materiales a conciliar</label>
-            <textarea
-              id="materiales"
-              value={materialesAConciliar}
-              onChange={(e) => setMaterialesAConciliar(e.target.value)}
-              required
-            />
-          </div>
+        <div className="form-section">
+          <h2 className="form-section-title">Detalle de la conciliación</h2>
+          <div className="form-grid">
+            <div className="form-field">
+              <label htmlFor="fecha">Fecha de conciliación</label>
+              <div className="field-glow">
+                <input
+                  id="fecha"
+                  type="date"
+                  value={fechaConciliacion}
+                  onChange={(e) => setFechaConciliacion(e.target.value)}
+                  required
+                />
+              </div>
+              <span className="hint">Por defecto, la fecha de hoy.</span>
+            </div>
 
-          <div className="form-field span-2">
-            <label>Recetas a conciliar</label>
-            <RecetasConciliarSection
-              items={listasConciliar}
-              onAdd={(item: NuevaReceta) =>
-                setListasConciliar((prev) => [...prev, { ...item, id: crypto.randomUUID() }])
-              }
-              onRemove={(id) => setListasConciliar((prev) => prev.filter((i) => i.id !== id))}
-            />
-          </div>
+            <div className="form-field span-2">
+              <label htmlFor="motivo">Motivo de conciliación</label>
+              <div className="field-glow">
+                <AutoResizeTextarea
+                  id="motivo"
+                  value={motivoConciliacion}
+                  onChange={(e) => setMotivoConciliacion(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-          <div className="form-field span-2">
-            <label htmlFor="regulatorios">Asuntos regulatorios</label>
-            <textarea
-              id="regulatorios"
-              value={asuntosRegulatorios}
-              onChange={(e) => setAsuntosRegulatorios(e.target.value)}
-              placeholder="Opcional: observaciones o requisitos regulatorios asociados"
-            />
+            <div className="form-field span-2">
+              <label htmlFor="materiales">Materiales a conciliar</label>
+              <div className="field-glow">
+                <AutoResizeTextarea
+                  id="materiales"
+                  value={materialesAConciliar}
+                  onChange={(e) => setMaterialesAConciliar(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-field span-2">
+              <label htmlFor="regulatorios">Asuntos regulatorios</label>
+              <div className="field-glow">
+                <AutoResizeTextarea
+                  id="regulatorios"
+                  value={asuntosRegulatorios}
+                  onChange={(e) => setAsuntosRegulatorios(e.target.value)}
+                  placeholder="Opcional: observaciones o requisitos regulatorios asociados"
+                />
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div className="form-section">
+          <h2 className="form-section-title">Recetas a conciliar</h2>
+          <RecetasConciliarSection
+            items={listasConciliar}
+            onAdd={(item: NuevaReceta) =>
+              setListasConciliar((prev) => [...prev, { ...item, id: crypto.randomUUID() }])
+            }
+            onRemove={(id) => setListasConciliar((prev) => prev.filter((i) => i.id !== id))}
+          />
         </div>
 
         <FormMessage>{error}</FormMessage>

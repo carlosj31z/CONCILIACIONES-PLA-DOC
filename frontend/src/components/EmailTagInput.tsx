@@ -59,7 +59,7 @@ export function EmailTagInput({ value, onChange, placeholder, suggestions = [] }
 
   return (
     <div>
-      <div className="tag-input" onClick={() => document.getElementById("email-tag-input-field")?.focus()}>
+      <div className="tag-input field-glow" onClick={() => document.getElementById("email-tag-input-field")?.focus()}>
         {value.map((email, i) => {
           const valido = EMAIL_REGEX.test(email);
           return (

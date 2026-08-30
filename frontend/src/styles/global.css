@@ -597,6 +597,24 @@ a {
   border: 1px solid rgba(248, 113, 113, 0.3);
 }
 
+/* Agrupa un tramo del formulario bajo un título, para que el orden de
+   llenado se lea de un vistazo en formularios largos como "Nuevo
+   requerimiento" en vez de ser una sola grilla continua de campos. */
+.form-section + .form-section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.form-section-title {
+  margin: 0 0 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -648,15 +666,106 @@ a {
   box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 
+/*
+  "Punto de luz" que recorre el borde del campo mientras se escribe en él:
+  un anillo detrás del control (::before, ligeramente más grande) con un
+  conic-gradient que gira; el control tiene fondo opaco encima, así que del
+  anillo solo se alcanza a ver el borde de ~2px. La rotación se anima sobre
+  la propiedad --angle registrada con @property, que es lo que permite que
+  el navegador la interpole en vez de saltar de golpe entre valores.
+*/
+@property --field-glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.field-glow {
+  position: relative;
+  border-radius: 8px;
+  isolation: isolate;
+}
+
+.field-glow::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--field-glow-angle),
+    transparent 0deg,
+    transparent 300deg,
+    var(--color-primary) 336deg,
+    #8b3ffb 350deg,
+    transparent 360deg
+  );
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.field-glow:focus-within::before {
+  opacity: 1;
+  animation: field-glow-spin 2.4s linear infinite;
+}
+
+@keyframes field-glow-spin {
+  to {
+    --field-glow-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-glow::before {
+    display: none;
+  }
+}
+
 .form-field textarea {
   resize: vertical;
   min-height: 90px;
+}
+
+.form-field textarea.textarea-auto {
+  /* Crece con JS (ver AutoResizeTextarea) en vez de con el asa de resize
+     manual: las dos formas de cambiar la altura a la vez se pisaban entre
+     sí (el usuario arrastraba, y la siguiente tecla volvía a fijar la
+     altura por contenido). */
+  resize: none;
+  overflow: hidden;
 }
 
 .form-error {
   color: var(--color-danger);
   font-size: 13px;
   margin-top: 8px;
+}
+
+.form-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #fde68a;
+  background: rgba(217, 158, 21, 0.12);
+  border: 1px solid rgba(217, 158, 21, 0.32);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.form-warning a {
+  color: #fde68a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.form-warning-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .form-actions {
@@ -910,9 +1019,13 @@ a {
   align-items: center;
 }
 
-.receta-manual-form input[type="text"] {
+.receta-manual-form .field-glow {
   flex: 1;
   min-width: 220px;
+}
+
+.receta-manual-form input[type="text"] {
+  width: 100%;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 10px 12px;

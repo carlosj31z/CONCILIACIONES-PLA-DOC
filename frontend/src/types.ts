@@ -65,6 +65,15 @@ export interface ManagedUser {
   createdAt: string;
 }
 
+export interface RegistroDuplicado {
+  id: string;
+  producto: string;
+  codigoProducto: string | null;
+  estado: EstadoRegistro;
+  createdAt: string;
+  creadoPor: { nombre: string };
+}
+
 export interface RecordLote {
   id: string;
   numeroLote: string;
