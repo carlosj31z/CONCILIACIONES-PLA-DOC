@@ -1,11 +1,37 @@
-import { Suspense, lazy } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Suspense, lazy, useEffect } from "react";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 import { LoadingState } from "./components/Spinner";
 import { pageVariants } from "./lib/motion";
 import { Seguimiento } from "./pages/Seguimiento";
+
+const CLAVE_RUTA_PENDIENTE = "conciliaciones_ruta_pendiente";
+
+/**
+ * Recarga una ruta profunda (ej. /registros/nuevo) → el backend responde con
+ * una página que guarda esa dirección en sessionStorage y manda al
+ * navegador a "/" (ver backend/src/app.ts). Al arrancar acá, si hay una
+ * dirección guardada la retoma con el router — la persona termina exactamente
+ * donde recargó, sin haber visto un 404 en el medio.
+ */
+function useRestaurarRutaProfunda() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    let pendiente: string | null = null;
+    try {
+      pendiente = sessionStorage.getItem(CLAVE_RUTA_PENDIENTE);
+      if (pendiente) sessionStorage.removeItem(CLAVE_RUTA_PENDIENTE);
+    } catch {
+      pendiente = null;
+    }
+    const aqui = window.location.pathname + window.location.search;
+    if (pendiente && pendiente !== aqui) navigate(pendiente, { replace: true });
+    // Solo al montar: es una recuperación de un único salto, no algo que deba repetirse.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
 
 /**
  * Seguimiento es la pantalla de entrada, así que va en el bundle principal.
@@ -69,6 +95,8 @@ function PrivateArea() {
 }
 
 export function App() {
+  useRestaurarRutaProfunda();
+
   return (
     <Suspense fallback={<div className="app-loading"><LoadingState label="Cargando…" /></div>}>
       <Routes>

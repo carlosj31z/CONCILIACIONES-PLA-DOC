@@ -8,19 +8,24 @@ import react from "@vitejs/plugin-react";
 
   Esta app es una SPA: rutas como /registros/nuevo solo existen en el enrutador
   del navegador, no como archivos. Al recargarlas —o al cambiar entre modo
-  escritorio y móvil, que recarga— el hosting busca un archivo que no existe.
+  escritorio y móvil, que recarga— un hosting puramente estático busca un
+  archivo que no existe.
 
-  El arreglo de verdad está en el vercel.json de la raíz: todo lo que no sea
-  /api, /assets, /media o el favicon se reescribe a /index.html, así React
-  arranca y el enrutador resuelve la dirección real (los enlaces profundos
-  siguen funcionando). Este 404.html es el plan B por si el hosting sirviera
-  su propia página de "no encontrado" antes de llegar a esa reescritura: en
-  vez de dejar al usuario en un error del que no puede salir, lo devuelve al
-  inicio, que es lo que se pidió.
+  El arreglo de verdad está en el backend (ver backend/src/app.ts): el
+  vercel.json de la raíz manda ahí cualquier dirección que no sea /api,
+  /assets, /media, el favicon o la raíz "/", y el backend responde con una
+  página que guarda la dirección pedida y manda a "/", donde React la
+  retoma. Se resolvió así, por un servicio con código corriendo, después de
+  que intentarlo solo con reescrituras estáticas de Vercel no funcionara.
 
-  A propósito NO es una copia de index.html: si el fallback de la raíz falla,
-  copiar la app entera aquí volvería a depender de que el hosting lo sirva
-  bien. Una página mínima que redirige no depende de nada.
+  Este 404.html es el plan B por si algo sirviera su propia página de "no
+  encontrado" antes de llegar a esa lógica: guarda la dirección igual (mismo
+  mecanismo que el backend) y manda al inicio, en vez de dejar a la persona
+  en un error del que no puede salir.
+
+  A propósito NO es una copia de index.html: si el fallback de arriba
+  falla, copiar la app entera aquí volvería a depender de que el hosting lo
+  sirva bien. Una página mínima que redirige no depende de nada.
 */
 function spaFallback404(): Plugin {
   return {
@@ -62,6 +67,14 @@ const PAGINA_404 = `<!doctype html>
       <p><a href="/">Ir al inicio</a></p>
     </div>
     <script>
+      // Mismo mecanismo que el backend (ver app.ts): guarda a dónde se
+      // quería llegar antes de irse, así App.tsx la retoma al arrancar.
+      try {
+        sessionStorage.setItem(
+          "conciliaciones_ruta_pendiente",
+          window.location.pathname + window.location.search
+        );
+      } catch (e) {}
       // Si el navegador ignora el meta refresh (o lo bloquea dentro de un
       // iframe), esto lo fuerza igual. replace() para que el botón "atrás" no
       // devuelva a esta pantalla.

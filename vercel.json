@@ -39,11 +39,17 @@
       }
     },
     {
+      "source": "/",
+      "destination": {
+        "type": "service",
+        "service": "frontend"
+      }
+    },
+    {
       "source": "/(.*)",
       "destination": {
         "type": "service",
-        "service": "frontend",
-        "path": "/"
+        "service": "backend"
       }
     }
   ],
