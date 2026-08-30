@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { CaretDown } from "@phosphor-icons/react";
 import { api, ApiError } from "../api/client";
 import { cardEntrance, collapseVariants, pressable } from "../lib/motion";
 import { StatusBadge } from "../components/StatusBadge";
@@ -17,9 +18,11 @@ import {
   ESTADO_LABELS,
   TIPO_FLUJO_LABELS,
   TRIGGER_LABELS,
+  TRIGGERS_CORREO,
   type ConciliationRecord,
   type DirectoryUser,
   type RegistroDuplicado,
+  type TriggerCorreo,
 } from "../types";
 
 const ESTADOS_EDITABLES = ["PENDIENTE_PLANEAMIENTO", "EN_REVISION_TECNICA"];
@@ -63,6 +66,7 @@ export function RecordDetail() {
 
   const [borrando, setBorrando] = useState(false);
   const [verFlujo, setVerFlujo] = useState(false);
+  const [verNotificaciones, setVerNotificaciones] = useState(false);
 
   const [duplicados, setDuplicados] = useState<RegistroDuplicado[]>([]);
 
@@ -127,6 +131,35 @@ export function RecordDetail() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.estado, directorio]);
+
+  /*
+    "Notificaciones enviadas" es la traza de a quién se avisó y por qué. Sin
+    agrupar salía un renglón por (destinatario × disparador) — unas 26 líneas
+    en un registro que recorrió el flujo completo, que dominaban la columna
+    entera. Se agrupa por disparador, en orden cronológico del flujo, y
+    dentro de cada grupo se juntan los correos repetidos con un contador:
+    que a alguien se le avisara dos veces (porque el requerimiento volvió a
+    Documentación Técnica y se completó de nuevo) es información real de la
+    traza, pero repetir la misma línea dos veces solo es ruido.
+  */
+  const gruposNotificacion = useMemo(() => {
+    const porTrigger = new Map<TriggerCorreo, Map<string, number>>();
+    for (const d of record?.destinatarios ?? []) {
+      const grupo = porTrigger.get(d.trigger) ?? new Map<string, number>();
+      grupo.set(d.email, (grupo.get(d.email) ?? 0) + 1);
+      porTrigger.set(d.trigger, grupo);
+    }
+    return TRIGGERS_CORREO.filter((t) => porTrigger.has(t)).map((trigger) => ({
+      trigger,
+      correos: [...porTrigger.get(trigger)!.entries()]
+        .map(([email, veces]) => ({ email, veces }))
+        .sort((a, b) => a.email.localeCompare(b.email)),
+    }));
+  }, [record?.destinatarios]);
+
+  const totalNotificados = new Set(
+    gruposNotificacion.flatMap((g) => g.correos.map((c) => c.email))
+  ).size;
 
   if (loading || !record) return <LoadingState label="Cargando registro…" />;
 
@@ -663,14 +696,52 @@ export function RecordDetail() {
             <div className="field-readonly">{record.creadoPor?.nombre}</div>
           </div>
 
-          {record.destinatarios && record.destinatarios.length > 0 && (
+          {gruposNotificacion.length > 0 && (
             <div className="card detail-section">
-              <h3>Notificaciones enviadas</h3>
-              {record.destinatarios.map((d) => (
-                <div key={d.id} className="hint" style={{ marginBottom: 4 }}>
-                  {d.email} <em>({TRIGGER_LABELS[d.trigger] ?? d.trigger})</em>
-                </div>
-              ))}
+              <button
+                type="button"
+                className="notif-toggle"
+                onClick={() => setVerNotificaciones((v) => !v)}
+                aria-expanded={verNotificaciones}
+              >
+                <span className="notif-toggle-fila">
+                  <h3>Notificaciones enviadas</h3>
+                  <CaretDown size={13} weight="bold" className={verNotificaciones ? "notif-caret abierta" : "notif-caret"} />
+                </span>
+                <span className="hint">
+                  {gruposNotificacion.length === 1 ? "1 aviso" : `${gruposNotificacion.length} avisos`} ·{" "}
+                  {totalNotificados === 1 ? "1 destinatario" : `${totalNotificados} destinatarios`}
+                </span>
+              </button>
+
+              <AnimatePresence initial={false}>
+                {verNotificaciones && (
+                  <motion.div
+                    variants={collapseVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    style={{ overflow: "hidden" }}
+                  >
+                    {gruposNotificacion.map((g) => (
+                      <div key={g.trigger} className="notif-grupo">
+                        <div className="notif-grupo-titulo">
+                          {TRIGGER_LABELS[g.trigger] ?? g.trigger}
+                          <span className="notif-conteo">{g.correos.length}</span>
+                        </div>
+                        <div className="notif-correos">
+                          {g.correos.map((c) => (
+                            <span key={c.email} className="notif-correo">
+                              {c.email}
+                              {c.veces > 1 && <em className="notif-veces">×{c.veces}</em>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
 

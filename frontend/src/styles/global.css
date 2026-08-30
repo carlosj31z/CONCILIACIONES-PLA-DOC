@@ -1672,6 +1672,93 @@ a {
   letter-spacing: 0.04em;
 }
 
+/* --- Notificaciones enviadas (agrupadas por disparador) --- */
+/* En dos filas —título con el caret a la derecha, y el resumen debajo—
+   porque juntos no entran en el ancho de la columna lateral y el título
+   quedaba partido a media palabra. */
+.notif-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notif-toggle-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.notif-toggle h3 {
+  margin: 0;
+}
+
+.notif-caret {
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.notif-caret.abierta {
+  transform: rotate(180deg);
+}
+
+.notif-grupo {
+  margin-top: 14px;
+}
+
+.notif-grupo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+
+.notif-conteo {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.notif-correos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.notif-correo {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 2px 7px;
+  /* Un correo largo se parte en vez de ensanchar la tarjeta. */
+  overflow-wrap: anywhere;
+}
+
+.notif-veces {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-left: 4px;
+}
+
 .field-readonly {
   white-space: pre-wrap;
   font-size: 14px;

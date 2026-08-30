@@ -79,11 +79,15 @@ export const TRIGGER_LABELS: Record<TriggerCorreo, string> = {
   DECISION_PLANEAMIENTO: "decisión de Planeamiento",
 };
 
-export type TriggerCorreo =
-  | "NUEVO_REQUERIMIENTO"
-  | "RECETA_LISTA"
-  | "RECHAZO_TECNICO"
-  | "DECISION_PLANEAMIENTO";
+/** En el orden en que ocurren dentro del flujo, para listarlos cronológicamente. */
+export const TRIGGERS_CORREO = [
+  "NUEVO_REQUERIMIENTO",
+  "RECETA_LISTA",
+  "RECHAZO_TECNICO",
+  "DECISION_PLANEAMIENTO",
+] as const;
+
+export type TriggerCorreo = (typeof TRIGGERS_CORREO)[number];
 
 export interface RegistroDuplicado {
   id: string;
