@@ -60,8 +60,16 @@ export function RecordFlowStatus({ record }: { record: ConciliationRecord }) {
       {pasos.map((paso, i) => (
         <div className={`flow-status-step flow-status-step--${paso.state}`} key={paso.label}>
           <div className="flow-status-track">
+            {/*
+              El punto va centrado en su propia columna (para alinear bien con
+              la etiqueta de abajo), y cada línea conecta desde ahí hasta el
+              borde de la columna — la mitad "before" de este paso y la mitad
+              "after" del paso anterior forman, juntas, el tramo completo
+              entre dos puntos consecutivos.
+            */}
+            {i > 0 && <span className="flow-status-line flow-status-line--before" />}
             <span className="flow-status-dot" />
-            {i < pasos.length - 1 && <span className="flow-status-line" />}
+            {i < pasos.length - 1 && <span className="flow-status-line flow-status-line--after" />}
           </div>
           <span className="flow-status-label">{paso.label}</span>
         </div>
