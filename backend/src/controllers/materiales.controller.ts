@@ -8,11 +8,57 @@ interface MaestroMaterialRow {
   data: Record<string, unknown> | null;
 }
 
+/**
+ * Una fila de mm_bom. Se piden todas las columnas porque la etapa vive en
+ * una de ellas y no sabemos cuál: ver `etapaDeLaLista`.
+ */
 interface MaestroBomRow {
   material: string;
   lista_alt: string | null;
   centro: string | null;
   estado: string | null;
+  [columna: string]: unknown;
+}
+
+export const ETAPA_ACONDICIONADO = "Acondicionado";
+export const ETAPA_ENVASE = "Envase";
+
+/** Primero acondicionado, después envase. */
+const ORDEN_ETAPAS = [ETAPA_ACONDICIONADO, ETAPA_ENVASE];
+
+/** Alternativas válidas para conciliar. Las 6, 9 y demás quedan fuera. */
+const ALTERNATIVAS_PERMITIDAS = [1, 2, 3, 4, 5];
+
+/**
+ * Columnas de mm_bom que NO pueden contener la etapa, para no confundirla
+ * con el nombre del producto (un producto puede llamarse "… ENVASE …").
+ */
+const COLUMNAS_NO_ETAPA = new Set(["material", "lista_alt", "centro", "texto_material", "producto"]);
+
+/**
+ * La etapa se lee de la propia lista de materiales, no del código.
+ *
+ * Deducirla del primer dígito estaba mal: hay códigos que empiezan con 5 que
+ * son de fabricación y no de envase, y así se colaban recetas de una etapa
+ * que no corresponde. Como la etapa es una columna de texto de mm_bom pero
+ * no sabemos su nombre, se busca por el VALOR entre todas las columnas: es
+ * indiferente a cómo se llame la columna y deja de funcionar de forma
+ * evidente (etapa vacía) si algún día cambia el vocabulario, en vez de
+ * clasificar mal en silencio.
+ */
+export function etapaDeLaLista(fila: MaestroBomRow): string {
+  for (const [columna, valor] of Object.entries(fila)) {
+    if (COLUMNAS_NO_ETAPA.has(columna) || typeof valor !== "string") continue;
+    if (/acondicionad/i.test(valor)) return ETAPA_ACONDICIONADO;
+    if (/envas/i.test(valor)) return ETAPA_ENVASE;
+  }
+  return "";
+}
+
+/** "3", "03" y " 3 " son la alternativa 3; "9" y "60" quedan fuera. */
+export function alternativaPermitida(listaAlt: string | null): boolean {
+  const n = Number.parseInt(String(listaAlt ?? "").trim(), 10);
+  return Number.isFinite(n) && ALTERNATIVAS_PERMITIDAS.includes(n);
 }
 
 /**
@@ -24,21 +70,18 @@ interface MaestroBomRow {
  * del maestro y además se puede filtrar en la propia consulta, que es lo
  * que arregla el problema de fondo (ver `buscarCandidatosMaterial`).
  */
-const PREFIJO_ENVASE = "5";
-const PREFIJO_ACONDICIONADO = "6";
-
 /**
  * El campo "Producto" del requerimiento siempre es un producto terminado, o
  * sea el acondicionado: el producto ya empacado en su presentación final.
  */
-const PREFIJOS_PRODUCTO_TERMINADO = [PREFIJO_ACONDICIONADO];
+const PREFIJOS_PRODUCTO_TERMINADO = ["6"];
 
 /**
- * "Recetas a conciliar" admite además la etapa de envase, porque una
- * conciliación puede involucrar la lista de materiales del envasado y no
- * solo la del empaque final.
+ * Para "Recetas a conciliar" el código solo sirve para descartar la materia
+ * prima (empieza con 1). Qué etapa es cada receta lo dice la propia lista de
+ * materiales, no el dígito — ver `etapaDeLaLista`.
  */
-const PREFIJOS_RECETA = [PREFIJO_ENVASE, PREFIJO_ACONDICIONADO];
+const PREFIJO_MATERIA_PRIMA = "1";
 
 /**
  * Topes altos: la idea es que el desplegable muestre todo lo que coincide,
@@ -76,12 +119,6 @@ function tipoMaterialLabel(data: Record<string, unknown> | null): string {
   return typeof tipo === "string" ? tipo : "";
 }
 
-function etapaPorCodigo(material: string): string {
-  if (material.startsWith(PREFIJO_ACONDICIONADO)) return "Acondicionado";
-  if (material.startsWith(PREFIJO_ENVASE)) return "Envase";
-  return "";
-}
-
 /**
  * ',' '(' ')' delimitan cláusulas en la sintaxis de filtros de PostgREST, y
  * '*' '%' son comodines de `ilike`: se quitan del término para que el texto
@@ -107,23 +144,19 @@ function condicionesPorPalabra(termino: string): string[] {
     });
 }
 
-function condicionPrefijos(prefijos: string[]): string {
-  return `or(${prefijos.map((p) => `material.like.${p}*`).join(",")})`;
-}
-
 /**
  * Busca en el Maestro de Materiales las filas que coinciden con el texto Y
- * pertenecen a alguna de las etapas pedidas.
+ * cumplen la condición de código que se le pase.
  *
- * El filtro de etapa va DENTRO de la consulta, no después de traer los
+ * El filtro de código va DENTRO de la consulta, no después de traer los
  * datos. Antes se pedían las primeras 60 coincidencias ordenadas por código
- * y recién ahí se descartaba lo que no era producto terminado: como los
- * códigos de materia prima empiezan con 1, se llevaban esas 60 primeras y
- * no quedaba nada que mostrar. El efecto era que escribir MENOS texto daba
- * MENOS resultados — "TRAMEDIF" no encontraba nada y "TRAMEDIF COMPU" sí.
+ * y recién ahí se descartaba lo que no correspondía: como los códigos de
+ * materia prima empiezan con 1, se llevaban esas 60 primeras y no quedaba
+ * nada que mostrar. El efecto era que escribir MENOS texto daba MENOS
+ * resultados — "TRAMEDIF" no encontraba nada y "TRAMEDIF COMPU" sí.
  */
-async function buscarCandidatosMaterial(termino: string, prefijos: string[]): Promise<MaestroMaterialRow[]> {
-  const condiciones = [...condicionesPorPalabra(termino), condicionPrefijos(prefijos)];
+async function buscarCandidatosMaterial(termino: string, condicionCodigo: string): Promise<MaestroMaterialRow[]> {
+  const condiciones = [...condicionesPorPalabra(termino), condicionCodigo];
   const filas = await sapFetch<MaestroMaterialRow[]>(
     `mm_materiales?select=material,texto_material,data` +
       `&and=(${condiciones.join(",")})` +
@@ -145,7 +178,10 @@ export async function buscarMateriales(req: Request, res: Response) {
     return res.json({ resultados: [], truncado: false });
   }
 
-  const filas = await buscarCandidatosMaterial(termino, PREFIJOS_PRODUCTO_TERMINADO);
+  const filas = await buscarCandidatosMaterial(
+    termino,
+    `or(${PREFIJOS_PRODUCTO_TERMINADO.map((p) => `material.like.${p}*`).join(",")})`
+  );
 
   res.json({
     resultados: filas.map((f) => ({
@@ -170,7 +206,8 @@ export async function buscarListasConciliar(req: Request, res: Response) {
     return res.json({ resultados: [], truncado: false });
   }
 
-  const productos = await buscarCandidatosMaterial(termino, PREFIJOS_RECETA);
+  // Del código solo se usa que no sea materia prima; la etapa la decide la lista.
+  const productos = await buscarCandidatosMaterial(termino, `material.not.like.${PREFIJO_MATERIA_PRIMA}*`);
   if (productos.length === 0) {
     return res.json({ resultados: [], truncado: false });
   }
@@ -179,20 +216,39 @@ export async function buscarListasConciliar(req: Request, res: Response) {
   const nombrePorCodigo = new Map(usados.map((p) => [p.material, p.texto_material || ""]));
 
   const inLista = usados.map((p) => encodeURIComponent(p.material)).join(",");
+  // select=* porque la etapa está en una columna de mm_bom cuyo nombre no
+  // conocemos; `etapaDeLaLista` la ubica por su valor.
   const filas = await sapFetch<MaestroBomRow[]>(
-    `mm_bom?select=material,lista_alt,centro,estado&material=in.(${inLista})` +
+    `mm_bom?select=*&material=in.(${inLista})` +
       `&order=material.asc,lista_alt.asc&limit=${TOPE_LISTAS}`
   );
 
-  res.json({
-    resultados: filas.map((f) => ({
+  const resultados = filas
+    .map((f) => ({
       material: f.material,
-      listaAlt: f.lista_alt || "1",
+      // Normalizada: SAP devuelve "1" y "05" indistintamente, y verlas
+      // mezcladas en la misma lista ("Alt. 1" junto a "Alt. 05") parece un
+      // error. El cero a la izquierda no distingue nada.
+      listaAlt: String(Number.parseInt(String(f.lista_alt ?? "1").trim(), 10) || 1),
       producto: nombrePorCodigo.get(f.material) || "",
       centro: f.centro || "",
       estado: f.estado || "",
-      etapa: etapaPorCodigo(f.material),
-    })),
+      etapa: etapaDeLaLista(f),
+      _alt: f.lista_alt,
+    }))
+    // Solo envase y acondicionado (lo que diga la lista), y solo las
+    // alternativas 1 a 5.
+    .filter((r) => ORDEN_ETAPAS.includes(r.etapa) && alternativaPermitida(r._alt))
+    .sort(
+      (a, b) =>
+        ORDEN_ETAPAS.indexOf(a.etapa) - ORDEN_ETAPAS.indexOf(b.etapa) ||
+        a.material.localeCompare(b.material) ||
+        Number(a.listaAlt) - Number(b.listaAlt)
+    )
+    .map(({ _alt, ...r }) => r);
+
+  res.json({
+    resultados,
     truncado: productos.length > usados.length || filas.length >= TOPE_LISTAS,
   });
 }
