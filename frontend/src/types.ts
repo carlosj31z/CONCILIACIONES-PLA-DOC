@@ -65,6 +65,26 @@ export interface ManagedUser {
   createdAt: string;
 }
 
+/**
+ * Disparadores de correo del backend (enum TriggerCorreo de Prisma). El
+ * listado "Notificaciones enviadas" es la traza de a quién se avisó y por
+ * qué, así que cada uno necesita su propia etiqueta: antes se resolvían con
+ * un ternario de dos ramas y las notificaciones de rechazo técnico y de
+ * decisión de Planeamiento se mostraban, falsamente, como "receta lista".
+ */
+export const TRIGGER_LABELS: Record<TriggerCorreo, string> = {
+  NUEVO_REQUERIMIENTO: "nuevo requerimiento",
+  RECETA_LISTA: "receta lista",
+  RECHAZO_TECNICO: "no se pudo generar",
+  DECISION_PLANEAMIENTO: "decisión de Planeamiento",
+};
+
+export type TriggerCorreo =
+  | "NUEVO_REQUERIMIENTO"
+  | "RECETA_LISTA"
+  | "RECHAZO_TECNICO"
+  | "DECISION_PLANEAMIENTO";
+
 export interface RegistroDuplicado {
   id: string;
   producto: string;
@@ -100,7 +120,7 @@ export interface DirectoryUser {
 export interface EmailRecipient {
   id: string;
   email: string;
-  trigger: "NUEVO_REQUERIMIENTO" | "RECETA_LISTA";
+  trigger: TriggerCorreo;
   createdAt: string;
 }
 

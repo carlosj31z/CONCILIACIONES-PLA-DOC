@@ -626,10 +626,36 @@ a {
   flex-direction: column;
   gap: 6px;
   margin-bottom: 18px;
+  /* Un campo nunca debe ensanchar su columna: sin esto, el ancho mínimo
+     automático de un control largo desborda la grilla en pantallas chicas. */
+  min-width: 0;
+}
+
+/* Dentro de una grilla el espaciado ya lo da `gap`; sumarle el margen
+   dejaba 36px entre filas y un ritmo vertical desparejo. */
+.form-grid > .form-field {
+  margin-bottom: 0;
 }
 
 .form-field.span-2 {
   grid-column: 1 / -1;
+}
+
+/*
+  Campos cuyo contenido es corto y de ancho conocido (una fecha, elegir
+  entre planta 1 y 2). Estirarlos a la columna entera daba un recuadro de
+  300-500px para tres caracteres, que se ve desproporcionado al lado de los
+  campos de texto. El tope va en el envoltorio para que el anillo de foco
+  siga calzando exactamente con el control.
+*/
+.form-field.field-compact > .field-glow {
+  max-width: 260px;
+}
+
+@media (max-width: 760px) {
+  .form-field.field-compact > .field-glow {
+    max-width: none;
+  }
 }
 
 .form-field label {
@@ -638,9 +664,18 @@ a {
   color: var(--color-text);
 }
 
-.form-field .hint {
+/*
+  Texto de ayuda secundario. Va a nivel global y no anidado bajo
+  .form-field: se usa en muchos sitios que no son un campo de formulario
+  (estados vacíos del Panel, indicadores del detalle, lista de
+  destinatarios, mensajes de FormMessage tone="hint"), y ahí quedaba con el
+  tamaño y el color del texto normal — un aviso menor se leía como una
+  afirmación del mismo peso que el contenido.
+*/
+.hint {
   font-size: 12px;
   color: var(--color-text-muted);
+  line-height: 1.5;
 }
 
 .form-field input[type="text"],
@@ -667,12 +702,16 @@ a {
 }
 
 /*
-  "Punto de luz" que recorre el borde del campo mientras se escribe en él:
-  un anillo detrás del control (::before, ligeramente más grande) con un
-  conic-gradient que gira; el control tiene fondo opaco encima, así que del
-  anillo solo se alcanza a ver el borde de ~2px. La rotación se anima sobre
-  la propiedad --angle registrada con @property, que es lo que permite que
-  el navegador la interpole en vez de saltar de golpe entre valores.
+  "Punto de luz" que recorre el borde del campo mientras se escribe en él.
+
+  El anillo se dibuja con la técnica de "borde con degradado": el
+  pseudo-elemento se pinta con un conic-gradient y una máscara le descuenta
+  su propia caja de contenido, de modo que solo sobrevive el marco de
+  `padding` px. Es a prueba de fallos: aunque el control de adentro no
+  tapara el fondo, del degradado nunca puede verse una mancha — solo existe
+  el anillo. La rotación se anima sobre --field-glow-angle, registrada con
+  @property, que es lo que permite al navegador interpolarla en vez de
+  saltar de golpe entre valores.
 */
 @property --field-glow-angle {
   syntax: "<angle>";
@@ -682,31 +721,65 @@ a {
 
 .field-glow {
   position: relative;
+  display: block;
   border-radius: 8px;
-  isolation: isolate;
 }
 
-.field-glow::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  z-index: -1;
-  border-radius: inherit;
-  background: conic-gradient(
-    from var(--field-glow-angle),
-    transparent 0deg,
-    transparent 300deg,
-    var(--color-primary) 336deg,
-    #8b3ffb 350deg,
-    transparent 360deg
-  );
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard);
+/*
+  El control tiene que ocupar todo el envoltorio. Sin esto, un input/select/
+  textarea se queda en su ancho intrínseco (~200px, 54px un select) mientras
+  el envoltorio —que sí es hijo flex de .form-field— se estira a la columna
+  entera: el campo se ve angosto y el anillo queda dibujado sobre una caja
+  mucho más grande que el recuadro que rodea.
+*/
+.field-glow > input,
+.field-glow > select,
+.field-glow > textarea {
+  display: block;
+  width: 100%;
 }
 
-.field-glow:focus-within::before {
-  opacity: 1;
-  animation: field-glow-spin 2.4s linear infinite;
+/*
+  Todo el efecto va detrás de @supports: sin mask-composite el
+  pseudo-elemento no se recortaría a un anillo y taparía el campo con el
+  degradado entero. Donde no hay soporte simplemente no hay luz — el campo
+  conserva su borde y su halo de foco normales.
+*/
+@supports (mask-composite: exclude) or (-webkit-mask-composite: xor) {
+  .field-glow::before {
+    content: "";
+    position: absolute;
+    /* inset: 0 + border-radius heredado = el anillo cae exactamente sobre
+       el borde del control, sin excederlo por ningún lado. */
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    pointer-events: none;
+    background: conic-gradient(
+      from var(--field-glow-angle),
+      transparent 0deg,
+      transparent 318deg,
+      rgba(122, 162, 255, 0.5) 338deg,
+      #b9d0ff 350deg,
+      rgba(139, 63, 251, 0.5) 356deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-standard);
+  }
+
+  .field-glow:focus-within::before {
+    opacity: 1;
+    animation: field-glow-spin 2.6s linear infinite;
+  }
 }
 
 @keyframes field-glow-spin {
@@ -733,6 +806,10 @@ a {
      altura por contenido). */
   resize: none;
   overflow: hidden;
+  /* Arranca más bajo que un textarea fijo: como crece solo con el
+     contenido, no hace falta reservar de entrada un hueco de 90px que en
+     un formulario con tres campos de texto seguidos se lee como vacío. */
+  min-height: 74px;
 }
 
 .form-error {
@@ -772,6 +849,13 @@ a {
   display: flex;
   gap: 12px;
   margin-top: 8px;
+}
+
+/* Cuando los botones cierran un formulario por secciones, necesitan
+   separarse del último bloque en vez de quedar pegados a él. */
+.form-section + .form-actions,
+.form-section ~ .form-actions {
+  margin-top: 28px;
 }
 
 /* --- Rutas (radio cards) --- */
@@ -1039,6 +1123,14 @@ a {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.receta-acciones {
+  margin-top: 12px;
+}
+
+.receta-vacia {
+  margin: 0;
 }
 
 .receta-list {

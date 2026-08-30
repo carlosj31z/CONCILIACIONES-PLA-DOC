@@ -258,7 +258,7 @@ export function NewRecord() {
                 <input id="codigoProducto" type="text" value={codigoProducto} onChange={(e) => setCodigoProducto(e.target.value)} />
               </div>
             </div>
-            <div className="form-field">
+            <div className="form-field field-compact">
               <label htmlFor="planta">Planta</label>
               <div className="field-glow">
                 <select id="planta" value={planta} onChange={(e) => setPlanta(e.target.value)} required>
@@ -301,7 +301,7 @@ export function NewRecord() {
         <div className="form-section">
           <h2 className="form-section-title">Detalle de la conciliación</h2>
           <div className="form-grid">
-            <div className="form-field">
+            <div className="form-field span-2 field-compact">
               <label htmlFor="fecha">Fecha de conciliación</label>
               <div className="field-glow">
                 <input

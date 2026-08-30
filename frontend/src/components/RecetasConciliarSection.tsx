@@ -210,7 +210,7 @@ export function RecetasConciliarSection({ items, onAdd, onRemove, disabled }: Re
       )}
 
       {!disabled && (
-        <div style={{ marginTop: 10 }}>
+        <div className="receta-acciones">
           <AnimatePresence mode="wait" initial={false}>
             {mostrarManual ? (
               <motion.div
@@ -270,11 +270,7 @@ export function RecetasConciliarSection({ items, onAdd, onRemove, disabled }: Re
       )}
 
       <div className="receta-list">
-        {items.length === 0 && (
-          <p className="hint" style={{ margin: "10px 0 0" }}>
-            Aún no se agregó ninguna lista de materiales.
-          </p>
-        )}
+        {items.length === 0 && <p className="hint receta-vacia">Aún no se agregó ninguna lista de materiales.</p>}
         {/* `popLayout` hace que, al quitar una receta, las de abajo suban
             deslizándose en vez de saltar de golpe al hueco. */}
         <AnimatePresence mode="popLayout" initial={false}>

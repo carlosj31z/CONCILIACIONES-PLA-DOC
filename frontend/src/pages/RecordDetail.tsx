@@ -16,6 +16,7 @@ import { formatDuracion, tiempoResolucionMs } from "../utils/duration";
 import {
   ESTADO_LABELS,
   TIPO_FLUJO_LABELS,
+  TRIGGER_LABELS,
   type ConciliationRecord,
   type DirectoryUser,
   type RegistroDuplicado,
@@ -349,7 +350,7 @@ export function RecordDetail() {
                       <input type="text" value={codigoProducto} onChange={(e) => setCodigoProducto(e.target.value)} />
                     </div>
                   </div>
-                  <div className="form-field">
+                  <div className="form-field field-compact">
                     <label>Planta</label>
                     <div className="field-glow">
                       <select value={planta} onChange={(e) => setPlanta(e.target.value)}>
@@ -364,7 +365,7 @@ export function RecordDetail() {
                       <input type="text" value={producto} onChange={(e) => setProducto(e.target.value)} required />
                     </div>
                   </div>
-                  <div className="form-field">
+                  <div className="form-field span-2 field-compact">
                     <label>Fecha de conciliación</label>
                     <div className="field-glow">
                       <input type="date" value={fechaConciliacion} onChange={(e) => setFechaConciliacion(e.target.value)} required />
@@ -667,7 +668,7 @@ export function RecordDetail() {
               <h3>Notificaciones enviadas</h3>
               {record.destinatarios.map((d) => (
                 <div key={d.id} className="hint" style={{ marginBottom: 4 }}>
-                  {d.email} <em>({d.trigger === "NUEVO_REQUERIMIENTO" ? "nuevo requerimiento" : "receta lista"})</em>
+                  {d.email} <em>({TRIGGER_LABELS[d.trigger] ?? d.trigger})</em>
                 </div>
               ))}
             </div>
