@@ -335,6 +335,15 @@ a {
   color: var(--color-text);
 }
 
+.sidebar-user-puesto {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 168px;
+}
+
 .user-avatar {
   width: 32px;
   height: 32px;
@@ -1887,30 +1896,26 @@ a {
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
-    min-width: 180px;
+    min-width: 200px;
     padding: 14px;
     border-radius: 14px;
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-top-color: var(--glass-border-top);
+    /* Fondo opaco a propósito, sin blur: el translúcido dejaba pasar el
+       texto de la barra que hay detrás y se confundía con el del popover. */
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
     box-shadow: 0 24px 48px -20px rgba(0, 0, 0, 0.75);
     animation: fade-in-up var(--duration-fast) var(--ease-standard) both;
-  }
-
-  @media (prefers-reduced-transparency: reduce) {
-    .user-menu-popover {
-      background: var(--color-surface);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-    }
   }
 
   .user-menu-name {
     font-weight: 600;
     color: var(--color-text);
     font-size: 13px;
+  }
+
+  .user-menu-puesto {
+    color: var(--color-text-muted);
+    font-size: 12px;
   }
 
   .user-menu-logout {

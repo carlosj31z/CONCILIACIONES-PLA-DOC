@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -18,6 +18,9 @@ import humanovaMark from "../assets/humanova-mark.png";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : undefined);
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed";
+
+/** Cuánto espera el sidebar, sin que el usuario interactúe con él, antes de colapsarse solo. */
+const SIDEBAR_IDLE_MS = 2500;
 
 /** Rutas donde el saludo aporta (pantallas "de inicio"), no en formularios ni detalle. */
 const RUTAS_CON_SALUDO = ["/", "/panel"];
@@ -59,6 +62,8 @@ export function Layout({ children }: { children: ReactNode }) {
   });
   const [menuAbierto, setMenuAbierto] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const idleTimerRef = useRef<number | null>(null);
 
   // El saludo solo tiene sentido al "llegar" a la app. Sobre el detalle de un
   // registro o un formulario es ruido que empuja el contenido hacia abajo —
@@ -72,6 +77,52 @@ export function Layout({ children }: { children: ReactNode }) {
       // localStorage no disponible (modo privado, etc.): no persiste, no rompe la app.
     }
   }, [colapsado]);
+
+  const limpiarTimerIdle = useCallback(() => {
+    if (idleTimerRef.current !== null) {
+      window.clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  }, []);
+
+  const programarColapsoAutomatico = useCallback(() => {
+    limpiarTimerIdle();
+    idleTimerRef.current = window.setTimeout(() => setColapsado(true), SIDEBAR_IDLE_MS);
+  }, [limpiarTimerIdle]);
+
+  // Colapso automático estilo "dock": si el cursor o el foco no están sobre
+  // el sidebar, se colapsa solo tras un momento sin interacción; al volver a
+  // pasar el mouse o enfocar algo adentro, se expande de nuevo. Solo tiene
+  // efecto visual en escritorio — en celular el sidebar es la barra
+  // superior y el CSS lo fuerza a ancho completo sin importar este estado.
+  useEffect(() => {
+    const el = sidebarRef.current;
+    if (!el) return;
+
+    function onActivar() {
+      limpiarTimerIdle();
+      setColapsado(false);
+    }
+    function onFocusOut(e: FocusEvent) {
+      if (!el!.contains(e.relatedTarget as Node)) {
+        programarColapsoAutomatico();
+      }
+    }
+
+    el.addEventListener("mouseenter", onActivar);
+    el.addEventListener("mouseleave", programarColapsoAutomatico);
+    el.addEventListener("focusin", onActivar);
+    el.addEventListener("focusout", onFocusOut);
+    programarColapsoAutomatico();
+
+    return () => {
+      el.removeEventListener("mouseenter", onActivar);
+      el.removeEventListener("mouseleave", programarColapsoAutomatico);
+      el.removeEventListener("focusin", onActivar);
+      el.removeEventListener("focusout", onFocusOut);
+      limpiarTimerIdle();
+    };
+  }, [limpiarTimerIdle, programarColapsoAutomatico]);
 
   useEffect(() => {
     if (!menuAbierto) return;
@@ -108,7 +159,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className={`layout${colapsado ? " sidebar-collapsed" : ""}`}>
-      <aside className="sidebar">
+      <aside className="sidebar" ref={sidebarRef}>
         <div className="sidebar-brand">
           <img src={humanovaMark} alt="Humanova" className="brand-mark" width={28} height={28} />
           <span className="sidebar-brand-text">Conciliaciones</span>
@@ -174,6 +225,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <span className="user-avatar">{user ? iniciales(user.nombre) : ""}</span>
             <span className="sidebar-nav-label sidebar-user-text">
               <span className="sidebar-user-name">{user?.nombre}</span>
+              {user?.puesto && <span className="sidebar-user-puesto">{user.puesto}</span>}
               <span className="role">{user ? ROLE_LABELS[user.role] : ""}</span>
             </span>
           </motion.button>
@@ -193,6 +245,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 exit="exit"
               >
                 <div className="user-menu-name">{user?.nombre}</div>
+                {user?.puesto && <div className="user-menu-puesto">{user.puesto}</div>}
                 <span className="role">{user ? ROLE_LABELS[user.role] : ""}</span>
                 <button className="user-menu-logout" onClick={logout} role="menuitem">
                   <SignOut size={16} />

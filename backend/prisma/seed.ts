@@ -21,7 +21,7 @@ const usuarios: SeedUser[] = [
   // Documentación Técnica
   { email: "gborjav@humanovalab.com", nombre: "Giannina Borja Vega", role: "DOC_TECNICA", puesto: "Analista de Documentación Técnica" },
   { email: "dquirozt@humanovalab.com", nombre: "Delia Quiroz Torres", role: "DOC_TECNICA", puesto: "Analista de Documentación Técnica" },
-  { email: "cjesusz@humanovalab.com", nombre: "Carlos Jesús Zegarra", role: "DOC_TECNICA", puesto: "Analista de Documentación Técnica" },
+  { email: "cjesusz@humanovalab.com", nombre: "Carlos Jesús Zegarra", role: "ADMIN", puesto: "Analista de Documentación Técnica" },
   { email: "mfernandezo@humanovalab.com", nombre: "Monica Fernandez Osores", role: "DOC_TECNICA", puesto: "Jefe de Documentación Técnica" },
 
   // Planeamiento

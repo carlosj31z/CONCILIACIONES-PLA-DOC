@@ -11,16 +11,14 @@ import humanovaLogo from "../assets/humanova-logo.png";
 /**
  * ¿Conviene descargar el video de fondo (~10 MB) para este visitante?
  *
- * En celular la tarjeta de ingreso ocupa casi toda la pantalla, así que el
- * fondo casi no se ve — no justifica 10 MB de datos móviles solo para
- * iniciar sesión. Se omite también si el sistema pide menos movimiento o si
- * el navegador informa ahorro de datos / conexión lenta. En esos casos
- * queda el degradado del scrim, que es un fondo válido por sí mismo.
+ * Se omite si el sistema pide menos movimiento o si el navegador informa
+ * ahorro de datos / conexión lenta — ahí queda el degradado del scrim, que
+ * es un fondo válido por sí mismo. Se descarga igual en celular: es el
+ * fondo de toda la pantalla de login, no solo detrás de la tarjeta.
  */
 function debeCargarVideo(): boolean {
   if (typeof window === "undefined") return false;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-  if (window.matchMedia("(max-width: 760px)").matches) return false;
 
   // API de información de red: no está en todos los navegadores, por eso el `any`.
   const conn = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection;

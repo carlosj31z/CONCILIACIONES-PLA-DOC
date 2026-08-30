@@ -66,6 +66,17 @@ export function Usuarios() {
     }
   }
 
+  async function eliminarUsuario(u: ManagedUser) {
+    if (!confirm(`¿Eliminar a ${u.nombre}? Esta acción no se puede deshacer.`)) return;
+    setError(null);
+    try {
+      await api.delete(`/users/${u.id}`);
+      await cargar();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo eliminar el usuario");
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -123,6 +134,7 @@ export function Usuarios() {
                 <th>Puesto</th>
                 <th>Rol</th>
                 <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <motion.tbody variants={listContainer} initial="initial" animate="animate">
@@ -155,6 +167,16 @@ export function Usuarios() {
                         onClick={() => alternarActivo(u)}
                       >
                         {u.activo ? "Activo — desactivar" : "Inactivo — activar"}
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-danger btn-compact"
+                        disabled={esYoMismo}
+                        title={esYoMismo ? "No puedes eliminar tu propia cuenta" : "Eliminar usuario"}
+                        onClick={() => eliminarUsuario(u)}
+                      >
+                        Eliminar
                       </button>
                     </td>
                   </motion.tr>

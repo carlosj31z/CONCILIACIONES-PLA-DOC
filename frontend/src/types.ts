@@ -46,6 +46,7 @@ export interface AuthUser {
   email: string;
   nombre: string;
   role: Role;
+  puesto?: string | null;
 }
 
 export const ROLE_LABELS: Record<Role, string> = {

@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string;
   nombre: string;
   role: Role;
+  puesto?: string | null;
 }
 
 declare global {

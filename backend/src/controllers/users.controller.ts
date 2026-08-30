@@ -72,3 +72,30 @@ export async function actualizarUsuario(req: Request, res: Response) {
   });
   res.json(usuario);
 }
+
+export async function eliminarUsuario(req: Request, res: Response) {
+  const { id } = req.params;
+
+  if (id === req.user!.id) {
+    throw new HttpError(400, "No puedes eliminar tu propia cuenta");
+  }
+
+  const existente = await prisma.user.findUnique({ where: { id } });
+  if (!existente) throw new HttpError(404, "Usuario no encontrado");
+
+  try {
+    await prisma.user.delete({ where: { id } });
+    res.status(204).end();
+  } catch (err) {
+    // P2003: violación de llave foránea — el usuario creó requerimientos o
+    // tiene historial asociado, que no se puede borrar en cascada sin
+    // perder trazabilidad. Se le pide desactivar en su lugar.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+      throw new HttpError(
+        409,
+        "No se puede eliminar: el usuario tiene requerimientos o historial asociado. Desactívalo en su lugar.",
+      );
+    }
+    throw err;
+  }
+}
