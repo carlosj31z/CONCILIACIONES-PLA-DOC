@@ -1,14 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowCounterClockwise, Check } from "@phosphor-icons/react";
 import { AutoResizeTextarea } from "../components/AutoResizeTextarea";
 import { EmailTagInput } from "../components/EmailTagInput";
 import { FormMessage } from "../components/FormMessage";
 import { MaterialLookup } from "../components/MaterialLookup";
 import { RecetasConciliarSection, type NuevaReceta } from "../components/RecetasConciliarSection";
 import { Spinner } from "../components/Spinner";
-import { cardEntrance, pressable, springBouncy } from "../lib/motion";
+import { useAuth } from "../context/AuthContext";
+import { borrarBorrador, claveBorrador, hace, leerBorrador, useAutoguardado } from "../lib/borrador";
+import { cardEntrance, collapseVariants, pressable, springBouncy } from "../lib/motion";
 import {
   ESTADO_LABELS,
   TIPO_FLUJO_LABELS,
@@ -24,18 +27,38 @@ function hoyISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Lo que se conserva del formulario entre recargas. */
+interface BorradorRequerimiento {
+  codigoProducto: string;
+  producto: string;
+  planta: string;
+  fechaConciliacion: string;
+  motivoConciliacion: string;
+  materialesAConciliar: string;
+  asuntosRegulatorios: string;
+  listasConciliar: ListaConciliar[];
+}
+
 export function NewRecord() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const clave = claveBorrador("nuevo-requerimiento", user?.id);
+  // Se lee una sola vez al montar (initializer de useState): en los renders
+  // siguientes el estado ya es la fuente de verdad.
+  const [borradorPrevio] = useState(() => leerBorrador<BorradorRequerimiento>(clave));
+  const [borradorDescartado, setBorradorDescartado] = useState(false);
+  const previo = borradorPrevio?.datos;
 
   // Paso 1: datos base del requerimiento.
-  const [codigoProducto, setCodigoProducto] = useState("");
-  const [producto, setProducto] = useState("");
-  const [planta, setPlanta] = useState("1");
-  const [fechaConciliacion, setFechaConciliacion] = useState(hoyISO());
-  const [motivoConciliacion, setMotivoConciliacion] = useState("");
-  const [materialesAConciliar, setMaterialesAConciliar] = useState("");
-  const [asuntosRegulatorios, setAsuntosRegulatorios] = useState("");
-  const [listasConciliar, setListasConciliar] = useState<ListaConciliar[]>([]);
+  const [codigoProducto, setCodigoProducto] = useState(previo?.codigoProducto ?? "");
+  const [producto, setProducto] = useState(previo?.producto ?? "");
+  const [planta, setPlanta] = useState(previo?.planta ?? "1");
+  const [fechaConciliacion, setFechaConciliacion] = useState(previo?.fechaConciliacion ?? hoyISO());
+  const [motivoConciliacion, setMotivoConciliacion] = useState(previo?.motivoConciliacion ?? "");
+  const [materialesAConciliar, setMaterialesAConciliar] = useState(previo?.materialesAConciliar ?? "");
+  const [asuntosRegulatorios, setAsuntosRegulatorios] = useState(previo?.asuntosRegulatorios ?? "");
+  const [listasConciliar, setListasConciliar] = useState<ListaConciliar[]>(previo?.listasConciliar ?? []);
   const [duplicados, setDuplicados] = useState<RegistroDuplicado[]>([]);
 
   // Mientras se llena el producto, avisa (sin bloquear) si ya hay un
@@ -85,6 +108,51 @@ export function NewRecord() {
   const [loading, setLoading] = useState(false);
   const [enviado, setEnviado] = useState(false);
 
+  /*
+    Se guarda solo si hay algo escrito de verdad: la fecha viene con el día de
+    hoy y la planta con "1" por defecto, así que mirar "algún campo distinto
+    del inicial" dejaría un borrador con solo esos dos apenas se abre la
+    pantalla, y después ofrecería recuperarlo.
+  */
+  const hayContenido = Boolean(
+    codigoProducto.trim() ||
+      producto.trim() ||
+      motivoConciliacion.trim() ||
+      materialesAConciliar.trim() ||
+      asuntosRegulatorios.trim() ||
+      listasConciliar.length > 0
+  );
+
+  const guardadoEn = useAutoguardado<BorradorRequerimiento>(
+    clave,
+    {
+      codigoProducto,
+      producto,
+      planta,
+      fechaConciliacion,
+      motivoConciliacion,
+      materialesAConciliar,
+      asuntosRegulatorios,
+      listasConciliar,
+    },
+    // Deja de guardar en cuanto el requerimiento existe en la base: a partir
+    // de ahí el registro es la fuente de verdad, no el borrador local.
+    { activo: !record, hayContenido }
+  );
+
+  function descartarBorrador() {
+    borrarBorrador(clave);
+    setBorradorDescartado(true);
+    setCodigoProducto("");
+    setProducto("");
+    setPlanta("1");
+    setFechaConciliacion(hoyISO());
+    setMotivoConciliacion("");
+    setMaterialesAConciliar("");
+    setAsuntosRegulatorios("");
+    setListasConciliar([]);
+  }
+
   async function handleCrear(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -100,6 +168,9 @@ export function NewRecord() {
         asuntosRegulatorios: asuntosRegulatorios || undefined,
         listasConciliar: listasConciliar.map(({ id, ...resto }) => resto),
       });
+      // El requerimiento ya está en la base: el borrador local cumplió su
+      // función y se borra para que no se ofrezca en el próximo alta.
+      borrarBorrador(clave);
       setRecord(nuevo);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo guardar el registro");
@@ -238,6 +309,28 @@ export function NewRecord() {
         </div>
       </div>
 
+      <AnimatePresence initial={false}>
+        {borradorPrevio && !borradorDescartado && (
+          <motion.div
+            className="borrador-aviso"
+            role="status"
+            variants={collapseVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            style={{ overflow: "hidden" }}
+          >
+            <ArrowCounterClockwise size={16} weight="bold" />
+            <span>
+              Recuperamos lo que estabas escribiendo ({hace(borradorPrevio.guardadoEn)}).
+            </span>
+            <button type="button" className="btn btn-secondary btn-compact" onClick={descartarBorrador}>
+              Descartar y empezar de cero
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <form className="card" onSubmit={handleCrear}>
         <div className="form-section">
           <h2 className="form-section-title">Producto</h2>
@@ -371,6 +464,19 @@ export function NewRecord() {
             {loading && <Spinner />}
             {loading ? "Guardando…" : "Guardar y continuar"}
           </button>
+          <AnimatePresence initial={false}>
+            {guardadoEn && (
+              <motion.span
+                className="hint borrador-estado"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <Check size={13} weight="bold" />
+                Borrador guardado en este dispositivo
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
       </form>
     </div>

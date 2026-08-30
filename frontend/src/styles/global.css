@@ -2539,3 +2539,37 @@ a {
     bottom: -110px;
   }
 }
+
+/* --- Borrador automático del formulario --- */
+.borrador-aviso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #bfdbfe;
+  background: rgba(51, 102, 255, 0.12);
+  border: 1px solid rgba(51, 102, 255, 0.32);
+}
+
+.borrador-aviso > span {
+  flex: 1;
+  min-width: 180px;
+}
+
+.borrador-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: center;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 760px) {
+  .borrador-aviso .btn {
+    width: 100%;
+  }
+}
