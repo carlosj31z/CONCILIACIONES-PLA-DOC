@@ -47,12 +47,60 @@ const COLUMNAS_NO_ETAPA = new Set(["material", "lista_alt", "centro", "texto_mat
  * clasificar mal en silencio.
  */
 export function etapaDeLaLista(fila: MaestroBomRow): string {
+  /*
+    Recorre también lo que haya adentro de columnas JSON. La tabla hermana
+    (mm_materiales) guarda los atributos de SAP dentro de una columna `data`
+    en vez de en columnas sueltas —"Denominación tipo material" vive ahí—, y
+    es de esperar que mm_bom haga lo mismo. Mirando solo valores de texto de
+    primer nivel, una etapa guardada dentro de ese JSON se salta entera: la
+    etapa queda vacía, el filtro de abajo descarta TODAS las filas y la
+    búsqueda devuelve cero resultados aunque SAP haya respondido bien.
+  */
+  const etapaDe = (valor: unknown, columna: string): string => {
+    if (typeof valor === "string") {
+      if (/acondicionad/i.test(valor)) return ETAPA_ACONDICIONADO;
+      if (/envas/i.test(valor)) return ETAPA_ENVASE;
+      return "";
+    }
+    if (valor && typeof valor === "object") {
+      for (const [clave, anidado] of Object.entries(valor as Record<string, unknown>)) {
+        // Dentro del JSON la clave puede ser la que nombra la etapa
+        // ("Etapa": "Envase"), así que no se filtra por nombre de columna.
+        const encontrada = etapaDe(anidado, clave);
+        if (encontrada) return encontrada;
+      }
+    }
+    return "";
+  };
+
   for (const [columna, valor] of Object.entries(fila)) {
-    if (COLUMNAS_NO_ETAPA.has(columna) || typeof valor !== "string") continue;
-    if (/acondicionad/i.test(valor)) return ETAPA_ACONDICIONADO;
-    if (/envas/i.test(valor)) return ETAPA_ENVASE;
+    // El nombre del producto puede contener "ENVASE" sin ser la etapa; esas
+    // columnas se saltan solo en el primer nivel, que es donde viven.
+    if (COLUMNAS_NO_ETAPA.has(columna)) continue;
+    const etapa = etapaDe(valor, columna);
+    if (etapa) return etapa;
   }
   return "";
+}
+
+/**
+ * La alternativa puede venir como columna suelta (`lista_alt`) o dentro de
+ * la columna JSON de atributos, igual que la etapa. Se busca en los dos
+ * lados para no depender de cómo esté armada la tabla.
+ */
+export function alternativaDeLaLista(fila: MaestroBomRow): string | null {
+  if (fila.lista_alt != null && String(fila.lista_alt).trim() !== "") {
+    return String(fila.lista_alt);
+  }
+  for (const valor of Object.values(fila)) {
+    if (!valor || typeof valor !== "object") continue;
+    for (const [clave, anidado] of Object.entries(valor as Record<string, unknown>)) {
+      if (!/alt/i.test(clave)) continue;
+      if (anidado == null || String(anidado).trim() === "") continue;
+      return String(anidado);
+    }
+  }
+  return null;
 }
 
 /** "3", "03" y " 3 " son la alternativa 3; "9" y "60" quedan fuera. */
@@ -206,14 +254,23 @@ export async function buscarListasConciliar(req: Request, res: Response) {
     return res.json({ resultados: [], truncado: false });
   }
 
-  // Del código solo se usa que no sea materia prima; la etapa la decide la lista.
-  // Dentro de una agrupación and()/or() de PostgREST, la negación va como
-  // prefijo "not." ANTES de la columna ("not.material.like.1*") — no entre
-  // la columna y el operador ("material.not.like.1*", que es la sintaxis de
-  // un parámetro de nivel superior, no la de un grupo). Con la sintaxis
-  // equivocada, PostgREST simplemente no matcheaba nada de esta condición y
-  // la búsqueda entera volvía vacía sin importar el producto.
-  const productos = await buscarCandidatosMaterial(termino, `not.material.like.${PREFIJO_MATERIA_PRIMA}*`);
+  /*
+    "Que no empiece con 1" se expresa como "que empiece con cualquier otro
+    dígito", en vez de con una negación.
+
+    Es a propósito: la sintaxis de negación de PostgREST dentro de una
+    agrupación and()/or() se escribe distinto que suelta, no se pudo
+    verificar contra el SAP real desde el entorno de desarrollo, y dos
+    intentos de adivinarla dejaron la búsqueda devolviendo cero resultados.
+    Esta forma —un or() de `like` por prefijo— es exactamente la misma que
+    usa `buscarMateriales`, que sí funciona en producción, así que no
+    depende de ninguna suposición.
+  */
+  const otrosPrefijos = ["0", "2", "3", "4", "5", "6", "7", "8", "9"];
+  const productos = await buscarCandidatosMaterial(
+    termino,
+    `or(${otrosPrefijos.map((p) => `material.like.${p}*`).join(",")})`
+  );
   if (productos.length === 0) {
     return res.json({ resultados: [], truncado: false });
   }
@@ -224,24 +281,29 @@ export async function buscarListasConciliar(req: Request, res: Response) {
   const inLista = usados.map((p) => encodeURIComponent(p.material)).join(",");
   // select=* porque la etapa está en una columna de mm_bom cuyo nombre no
   // conocemos; `etapaDeLaLista` la ubica por su valor.
+  // Se ordena solo por `material`: ordenar además por `lista_alt` obligaría a
+  // que esa columna exista con ese nombre exacto, y el orden final por
+  // alternativa se hace igual acá abajo con el valor ya normalizado.
   const filas = await sapFetch<MaestroBomRow[]>(
-    `mm_bom?select=*&material=in.(${inLista})` +
-      `&order=material.asc,lista_alt.asc&limit=${TOPE_LISTAS}`
+    `mm_bom?select=*&material=in.(${inLista})&order=material.asc&limit=${TOPE_LISTAS}`
   );
 
   const resultados = filas
-    .map((f) => ({
-      material: f.material,
-      // Normalizada: SAP devuelve "1" y "05" indistintamente, y verlas
-      // mezcladas en la misma lista ("Alt. 1" junto a "Alt. 05") parece un
-      // error. El cero a la izquierda no distingue nada.
-      listaAlt: String(Number.parseInt(String(f.lista_alt ?? "1").trim(), 10) || 1),
-      producto: nombrePorCodigo.get(f.material) || "",
-      centro: f.centro || "",
-      estado: f.estado || "",
-      etapa: etapaDeLaLista(f),
-      _alt: f.lista_alt,
-    }))
+    .map((f) => {
+      const alt = alternativaDeLaLista(f);
+      return {
+        material: f.material,
+        // Normalizada: SAP devuelve "1" y "05" indistintamente, y verlas
+        // mezcladas en la misma lista ("Alt. 1" junto a "Alt. 05") parece un
+        // error. El cero a la izquierda no distingue nada.
+        listaAlt: String(Number.parseInt(String(alt ?? "1").trim(), 10) || 1),
+        producto: nombrePorCodigo.get(f.material) || "",
+        centro: f.centro || "",
+        estado: f.estado || "",
+        etapa: etapaDeLaLista(f),
+        _alt: alt,
+      };
+    })
     // Solo envase y acondicionado (lo que diga la lista), y solo las
     // alternativas 1 a 5.
     .filter((r) => ORDEN_ETAPAS.includes(r.etapa) && alternativaPermitida(r._alt))
@@ -256,5 +318,64 @@ export async function buscarListasConciliar(req: Request, res: Response) {
   res.json({
     resultados,
     truncado: productos.length > usados.length || filas.length >= TOPE_LISTAS,
+  });
+}
+
+/**
+ * Diagnóstico (solo ADMIN): devuelve cómo se ven de verdad las filas de
+ * mm_bom para un producto, y qué etapa/alternativa deduce de cada una.
+ *
+ * Existe porque el SAP real no es alcanzable desde el entorno de
+ * desarrollo: la forma exacta de esa tabla (nombres de columnas, si los
+ * atributos van sueltos o dentro de un JSON, cómo se escribe la etapa) solo
+ * se puede confirmar consultándola desde producción. Sin esto, cualquier
+ * corrección sobre el filtrado de recetas es una suposición.
+ *
+ * No expone nada que el usuario no pueda ver ya por la búsqueda normal —
+ * son los mismos datos de solo lectura del maestro—, pero se limita a ADMIN
+ * porque su salida es ruido técnico, no información de trabajo.
+ */
+export async function diagnosticarListas(req: Request, res: Response) {
+  const termino = limpiarTermino(String(req.query.q ?? "").trim());
+  if (termino.length < 2) {
+    throw new HttpError(400, "Indica un texto de al menos 2 caracteres en ?q=");
+  }
+
+  const otrosPrefijos = ["0", "2", "3", "4", "5", "6", "7", "8", "9"];
+  const productos = await buscarCandidatosMaterial(
+    termino,
+    `or(${otrosPrefijos.map((p) => `material.like.${p}*`).join(",")})`
+  );
+
+  if (productos.length === 0) {
+    return res.json({
+      termino,
+      productosEncontrados: 0,
+      diagnostico: "La búsqueda de materiales no devolvió ningún producto: el problema está antes de consultar mm_bom.",
+      filas: [],
+    });
+  }
+
+  const usados = productos.slice(0, 5);
+  const inLista = usados.map((p) => encodeURIComponent(p.material)).join(",");
+  const filas = await sapFetch<MaestroBomRow[]>(
+    `mm_bom?select=*&material=in.(${inLista})&order=material.asc&limit=20`
+  );
+
+  res.json({
+    termino,
+    productosEncontrados: productos.length,
+    materialesConsultados: usados.map((p) => p.material),
+    filasRecibidas: filas.length,
+    // La fila cruda, tal cual la manda SAP: es lo que hace falta ver para
+    // saber dónde vive la etapa y cómo está escrita.
+    ejemploFilaCruda: filas[0] ?? null,
+    columnasDetectadas: filas[0] ? Object.keys(filas[0]) : [],
+    interpretacion: filas.map((f) => ({
+      material: f.material,
+      etapaDetectada: etapaDeLaLista(f) || "(vacía — por esto se descarta)",
+      alternativaDetectada: alternativaDeLaLista(f) ?? "(no encontrada)",
+      pasaElFiltro: ORDEN_ETAPAS.includes(etapaDeLaLista(f)) && alternativaPermitida(alternativaDeLaLista(f)),
+    })),
   });
 }
