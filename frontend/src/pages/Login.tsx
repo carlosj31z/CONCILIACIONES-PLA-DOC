@@ -147,7 +147,6 @@ export function Login() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: easeOut, delay: 0.12 }}
       >
-        <p>Un flujo claro entre Planeamiento y Documentación Técnica, con estado y trazabilidad en cada paso.</p>
         <div className="login-roles">
           <span className="login-role-pill">Planeamiento</span>
           <span className="login-role-pill">Documentación Técnica</span>
