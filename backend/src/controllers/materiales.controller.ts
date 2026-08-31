@@ -207,7 +207,13 @@ export async function buscarListasConciliar(req: Request, res: Response) {
   }
 
   // Del código solo se usa que no sea materia prima; la etapa la decide la lista.
-  const productos = await buscarCandidatosMaterial(termino, `material.not.like.${PREFIJO_MATERIA_PRIMA}*`);
+  // Dentro de una agrupación and()/or() de PostgREST, la negación va como
+  // prefijo "not." ANTES de la columna ("not.material.like.1*") — no entre
+  // la columna y el operador ("material.not.like.1*", que es la sintaxis de
+  // un parámetro de nivel superior, no la de un grupo). Con la sintaxis
+  // equivocada, PostgREST simplemente no matcheaba nada de esta condición y
+  // la búsqueda entera volvía vacía sin importar el producto.
+  const productos = await buscarCandidatosMaterial(termino, `not.material.like.${PREFIJO_MATERIA_PRIMA}*`);
   if (productos.length === 0) {
     return res.json({ resultados: [], truncado: false });
   }
