@@ -12,18 +12,16 @@ function required(name: string, fallback?: string): string {
  * Dirección pública de la app, la que se usa para armar el enlace "Ver
  * registro" de los correos.
  *
- * Si APP_BASE_URL no está configurada se deducía localhost, y en producción
- * eso dejaba los correos con un enlace que solo funciona en la computadora
- * de quien desarrolla. Vercel publica el dominio del proyecto en sus propias
- * variables, así que se usan como respaldo: primero el de producción y, en
- * un despliegue de vista previa, el de ese despliegue.
+ * Antes se deducía de las variables que publica Vercel (VERCEL_PROJECT_PRODUCTION_URL /
+ * VERCEL_URL), pero en este despliegue de varios servicios esas variables no
+ * apuntan de forma confiable al dominio real que usa el equipo
+ * (conciliaciones-pla-doc-bz7u.vercel.app) — a veces resolvían al dominio
+ * específico de un deploy o de vista previa. Por eso el dominio de
+ * producción va fijo acá; sigue pudiéndose pisar con APP_BASE_URL (por
+ * ejemplo, en local, donde .env lo pone en localhost).
  */
 function urlPublicaPorDefecto(): string {
-  const produccion = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  if (produccion) return `https://${produccion}`;
-  const despliegue = process.env.VERCEL_URL;
-  if (despliegue) return `https://${despliegue}`;
-  return "http://localhost:5173";
+  return "https://conciliaciones-pla-doc-bz7u.vercel.app";
 }
 
 export const config = {
