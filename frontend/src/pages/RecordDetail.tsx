@@ -175,7 +175,11 @@ export function RecordDetail() {
   // cierre exitoso final. El backend deja un rastro de esa acción aparte.
   const puedeBorrar = esDueno && (ESTADOS_ELIMINABLES.includes(record.estado) || user?.role === "ADMIN");
   const borradoForzado = !ESTADOS_ELIMINABLES.includes(record.estado);
-  const puedeDecidir = esDueno && ESTADOS_PENDIENTES_DECISION.includes(record.estado);
+  // La decisión final (concluir/rechazar) es de todo el rol Planeamiento, no
+  // solo de quien creó el requerimiento — mismo alcance que ADMIN.
+  const puedeDecidir =
+    (user?.role === "PLANEAMIENTO" || user?.role === "ADMIN") &&
+    ESTADOS_PENDIENTES_DECISION.includes(record.estado);
 
   async function guardarBorrador() {
     setError(null);

@@ -15,6 +15,8 @@ interface EncolarCorreoParams {
   motivo?: string;
   /** Solo para DECISION_PLANEAMIENTO: true = concluida, false = rechazada. */
   aprobado?: boolean;
+  /** Solo para RECETA_LISTA: observaciones que dejó Documentación Técnica en la página. */
+  observaciones?: string | null;
   /** Permite reutilizar una transacción abierta por el controlador que cambia el estado. */
   tx?: Prisma.TransactionClient;
 }
@@ -39,7 +41,15 @@ export function normalizarDestinatarios(emails: string[]): string[] {
 // creada para que el controlador, ya fuera de la transacción, dispare el
 // envío inline (`enviarCorreoInmediato`) sin arriesgar un correo huérfano
 // si la transacción llegara a fallar.
-export async function encolarCorreo({ record, trigger, destinatarios, motivo, aprobado, tx }: EncolarCorreoParams) {
+export async function encolarCorreo({
+  record,
+  trigger,
+  destinatarios,
+  motivo,
+  aprobado,
+  observaciones,
+  tx,
+}: EncolarCorreoParams) {
   const db = tx ?? prisma;
 
   const { subject, html } = (() => {
@@ -52,7 +62,7 @@ export async function encolarCorreo({ record, trigger, destinatarios, motivo, ap
         return buildDecisionPlaneamientoEmail(record, aprobado ?? true, motivo);
       case "RECETA_LISTA":
       default:
-        return buildRecetaListaEmail(record);
+        return buildRecetaListaEmail(record, observaciones);
     }
   })();
 

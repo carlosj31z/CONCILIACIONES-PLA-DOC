@@ -145,7 +145,7 @@ export function buildDecisionPlaneamientoEmail(record: ConciliationRecord, aprob
   return { subject, html };
 }
 
-export function buildRecetaListaEmail(record: ConciliationRecord) {
+export function buildRecetaListaEmail(record: ConciliationRecord, observaciones?: string | null) {
   const esGeneracion = record.tipoFlujo === "GENERAR_RECETA";
   const subject = esGeneracion
     ? `Receta de conciliación generada: ${record.producto}`
@@ -155,6 +155,7 @@ export function buildRecetaListaEmail(record: ConciliationRecord) {
     `
     ${fichaProducto(record)}
     ${parrafo("Documentación Técnica finalizó su tarea sobre este requerimiento. Ya puedes revisar el detalle.")}
+    ${observaciones?.trim() ? bloque("Observaciones de Documentación Técnica", observaciones.trim()) : ""}
     ${boton(record.id)}`
   );
   return { subject, html };

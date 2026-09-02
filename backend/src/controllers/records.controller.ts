@@ -291,6 +291,7 @@ export async function completarTarea(req: Request, res: Response) {
       record: actualizado,
       trigger: "RECETA_LISTA",
       destinatarios: emails,
+      observaciones: campos.observaciones,
       tx,
     });
 
@@ -359,8 +360,9 @@ export async function rechazarTecnica(req: Request, res: Response) {
 }
 
 /**
- * Rol Planeamiento (dueño) o ADMIN: da por buena la receta/actualización que
- * entregó Documentación Técnica. Cierre final del requerimiento.
+ * Rol Planeamiento (cualquier usuario del rol, no solo quien lo creó) o
+ * ADMIN: da por buena la receta/actualización que entregó Documentación
+ * Técnica. Cierre final del requerimiento.
  */
 export async function concluirRegistro(req: Request, res: Response) {
   const { id } = req.params;
@@ -368,8 +370,8 @@ export async function concluirRegistro(req: Request, res: Response) {
 
   const existente = await prisma.conciliationRecord.findUnique({ where: { id } });
   if (!existente) throw new HttpError(404, "Registro no encontrado");
-  if (existente.creadoPorId !== userId && req.user!.role !== "ADMIN") {
-    throw new HttpError(403, "Solo quien creó el requerimiento puede concluirlo");
+  if (req.user!.role !== "PLANEAMIENTO" && req.user!.role !== "ADMIN") {
+    throw new HttpError(403, "Solo Planeamiento o un administrador puede concluir un requerimiento");
   }
   if (!ESTADOS_PENDIENTES_DECISION.includes(existente.estado as (typeof ESTADOS_PENDIENTES_DECISION)[number])) {
     throw new HttpError(409, "Este registro no está esperando la conclusión de Planeamiento");
@@ -405,9 +407,10 @@ export async function concluirRegistro(req: Request, res: Response) {
 }
 
 /**
- * Rol Planeamiento (dueño) o ADMIN: rechaza la receta/actualización
- * entregada y la devuelve a Documentación Técnica con un motivo, para que la
- * rehaga (vuelve a EN_REVISION_TECNICA).
+ * Rol Planeamiento (cualquier usuario del rol, no solo quien lo creó) o
+ * ADMIN: rechaza la receta/actualización entregada y la devuelve a
+ * Documentación Técnica con un motivo, para que la rehaga (vuelve a
+ * EN_REVISION_TECNICA).
  */
 export async function rechazarPlaneamiento(req: Request, res: Response) {
   const { id } = req.params;
@@ -416,8 +419,8 @@ export async function rechazarPlaneamiento(req: Request, res: Response) {
 
   const existente = await prisma.conciliationRecord.findUnique({ where: { id } });
   if (!existente) throw new HttpError(404, "Registro no encontrado");
-  if (existente.creadoPorId !== userId && req.user!.role !== "ADMIN") {
-    throw new HttpError(403, "Solo quien creó el requerimiento puede rechazarlo");
+  if (req.user!.role !== "PLANEAMIENTO" && req.user!.role !== "ADMIN") {
+    throw new HttpError(403, "Solo Planeamiento o un administrador puede rechazar un requerimiento");
   }
   if (!ESTADOS_PENDIENTES_DECISION.includes(existente.estado as (typeof ESTADOS_PENDIENTES_DECISION)[number])) {
     throw new HttpError(409, "Este registro no está esperando la conclusión de Planeamiento");
