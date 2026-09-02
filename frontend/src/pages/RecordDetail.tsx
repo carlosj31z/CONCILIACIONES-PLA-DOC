@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { CaretDown } from "@phosphor-icons/react";
 import { api, ApiError } from "../api/client";
-import { cardEntrance, collapseVariants, pressable } from "../lib/motion";
+import { cardEntrance, collapseVariants, pressable, springBouncy } from "../lib/motion";
 import { StatusBadge } from "../components/StatusBadge";
 import { AutoResizeTextarea } from "../components/AutoResizeTextarea";
 import { EmailTagInput } from "../components/EmailTagInput";
@@ -18,11 +18,13 @@ import { formatDuracion, tiempoResolucionMs } from "../utils/duration";
 import {
   ESTADO_LABELS,
   TIPO_FLUJO_LABELS,
+  TIPOS_FLUJO,
   TRIGGER_LABELS,
   TRIGGERS_CORREO,
   type ConciliationRecord,
   type DirectoryUser,
   type RegistroDuplicado,
+  type TipoFlujo,
   type TriggerCorreo,
 } from "../types";
 
@@ -64,6 +66,15 @@ export function RecordDetail() {
   const [rechazandoPlaneamiento, setRechazandoPlaneamiento] = useState(false);
   const [motivoRechazoPlaneamiento, setMotivoRechazoPlaneamiento] = useState("");
   const [decidiendo, setDecidiendo] = useState(false);
+
+  // Reanudar el envío a Documentación Técnica: si Planeamiento (o ADMIN)
+  // creó el requerimiento y se fue de la página o la recargó antes de elegir
+  // ruta y destinatarios, el registro queda "huérfano" en
+  // PENDIENTE_PLANEAMIENTO sin forma de retomarlo — esto le da esa segunda
+  // oportunidad desde el propio detalle del registro.
+  const [tipoFlujoRuta, setTipoFlujoRuta] = useState<TipoFlujo | null>(null);
+  const [destinatariosRuta, setDestinatariosRuta] = useState<string[]>([]);
+  const [enviandoRuta, setEnviandoRuta] = useState(false);
 
   const [borrando, setBorrando] = useState(false);
   const [verFlujo, setVerFlujo] = useState(false);
@@ -133,6 +144,15 @@ export function RecordDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.estado, directorio]);
 
+  // Igual, pero para retomar el envío a Documentación Técnica cuando el
+  // registro quedó pendiente de elegir ruta.
+  useEffect(() => {
+    if (record?.estado === "PENDIENTE_PLANEAMIENTO" && directorio.length > 0 && destinatariosRuta.length === 0) {
+      setDestinatariosRuta(directorio.map((u) => u.email));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.estado, directorio]);
+
   /*
     "Notificaciones enviadas" es la traza de a quién se avisó y por qué. Sin
     agrupar salía un renglón por (destinatario × disparador) — unas 26 líneas
@@ -180,6 +200,11 @@ export function RecordDetail() {
   const puedeDecidir =
     (user?.role === "PLANEAMIENTO" || user?.role === "ADMIN") &&
     ESTADOS_PENDIENTES_DECISION.includes(record.estado);
+  // Permite retomar el paso "elegir ruta y notificar" cuando el registro se
+  // quedó a medio camino (PENDIENTE_PLANEAMIENTO) porque quien lo creó salió
+  // de la pantalla de alta antes de completarlo.
+  const puedeIniciarRevision =
+    (user?.role === "PLANEAMIENTO" || user?.role === "ADMIN") && record.estado === "PENDIENTE_PLANEAMIENTO";
 
   async function guardarBorrador() {
     setError(null);
@@ -216,6 +241,28 @@ export function RecordDetail() {
       setError(err instanceof ApiError ? err.message : "No se pudo completar la tarea");
     } finally {
       setCompletando(false);
+    }
+  }
+
+  async function enviarARevision() {
+    if (!id || !tipoFlujoRuta) return;
+    setError(null);
+    setEnviandoRuta(true);
+    try {
+      const actualizado = await api.post<ConciliationRecord>(`/records/${id}/decision`, {
+        tipoFlujo: tipoFlujoRuta,
+        destinatarios: destinatariosRuta,
+      });
+      await cargar();
+      setAviso(
+        actualizado.emailEstado === "FALLIDO"
+          ? "Enviado a revisión técnica, pero el correo de notificación no se pudo despachar (se reintentará automáticamente)."
+          : `Se notificó por correo a ${destinatariosRuta.length} destinatario(s). Documentación Técnica ya puede trabajar sobre este registro.`
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo enviar la notificación");
+    } finally {
+      setEnviandoRuta(false);
     }
   }
 
@@ -498,6 +545,66 @@ export function RecordDetail() {
             />
           </div>
 
+          {puedeIniciarRevision && (
+            <div className="card detail-section">
+              <h3>Enviar a Documentación Técnica</h3>
+              <p className="hint" style={{ marginTop: 0 }}>
+                Este requerimiento todavía no eligió ruta ni fue notificado. Puede que quien lo creó haya salido de
+                esta pantalla o la haya recargado antes de terminar — completa este paso para continuar.
+              </p>
+
+              <div className="form-field">
+                <label>Ruta del requerimiento</label>
+                <div className="route-options" role="radiogroup" aria-label="Ruta del requerimiento">
+                  {TIPOS_FLUJO.map((t) => (
+                    <motion.button
+                      type="button"
+                      key={t}
+                      role="radio"
+                      aria-checked={tipoFlujoRuta === t}
+                      className={`route-card${tipoFlujoRuta === t ? " selected" : ""}`}
+                      onClick={() => setTipoFlujoRuta(t)}
+                      {...pressable}
+                    >
+                      {tipoFlujoRuta === t && (
+                        <motion.span className="route-card-ring" layoutId="route-selected-detalle" transition={springBouncy} />
+                      )}
+                      <strong>{TIPO_FLUJO_LABELS[t]}</strong>
+                      {t === "GENERAR_RECETA"
+                        ? "Genera una nueva receta de conciliación de materiales."
+                        : "Actualiza la receta existente sin pasar por conciliación."}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-field">
+                <label>Destinatarios de la notificación</label>
+                <EmailTagInput
+                  value={destinatariosRuta}
+                  onChange={setDestinatariosRuta}
+                  suggestions={directorio.map((u) => u.email)}
+                  placeholder="Escribe un correo y presiona Enter…"
+                />
+                <span className="hint">Se prellenó con todos los usuarios; ajusta si hace falta.</span>
+              </div>
+
+              <FormMessage>{error}</FormMessage>
+
+              <div className="form-actions">
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  onClick={enviarARevision}
+                  disabled={!tipoFlujoRuta || destinatariosRuta.length === 0 || enviandoRuta}
+                >
+                  {enviandoRuta && <Spinner />}
+                  {enviandoRuta ? "Enviando…" : "Enviar a Documentación Técnica"}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="card detail-section">
             <h3>Documentación Técnica</h3>
 
@@ -629,7 +736,7 @@ export function RecordDetail() {
                   <label>Observaciones</label>
                   <div className="field-readonly">{record.respuestaTecnica?.observaciones || "—"}</div>
                 </div>
-                {!enRevision && record.estado === "PENDIENTE_PLANEAMIENTO" && (
+                {!enRevision && record.estado === "PENDIENTE_PLANEAMIENTO" && !puedeIniciarRevision && (
                   <p className="hint">Este registro aún no fue enviado a revisión técnica.</p>
                 )}
                 {/*

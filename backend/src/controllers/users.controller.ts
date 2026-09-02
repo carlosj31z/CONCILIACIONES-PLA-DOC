@@ -25,12 +25,13 @@ export async function listarUsuarios(_req: Request, res: Response) {
 /**
  * Directorio liviano para cualquier usuario autenticado (no solo ADMIN): lo
  * usa el frontend para prellenar los destinatarios de notificación con todo
- * el equipo de Planeamiento o de Documentación Técnica, sin exponer datos
- * de administración de cuentas (activo/createdAt).
+ * el equipo de Planeamiento y de Documentación Técnica (y los ADMIN, para
+ * que queden siempre en copia por defecto), sin exponer datos de
+ * administración de cuentas (activo/createdAt).
  */
 export async function directorioUsuarios(_req: Request, res: Response) {
   const usuarios = await prisma.user.findMany({
-    where: { activo: true, role: { in: ["PLANEAMIENTO", "DOC_TECNICA"] } },
+    where: { activo: true, role: { in: ["PLANEAMIENTO", "DOC_TECNICA", "ADMIN"] } },
     select: { id: true, nombre: true, email: true, role: true },
     orderBy: { nombre: "asc" },
   });
