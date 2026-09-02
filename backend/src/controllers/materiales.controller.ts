@@ -6,6 +6,7 @@ interface MaestroMaterialRow {
   material: string;
   texto_material: string;
   data: Record<string, unknown> | null;
+  [columna: string]: unknown;
 }
 
 /**
@@ -150,6 +151,18 @@ const TOPE_MATERIALES = 300;
 const TOPE_PRODUCTOS_PARA_BOM = 150;
 const TOPE_LISTAS = 600;
 
+/**
+ * "Buscar en el Maestro de Materiales (SAP)" no filtra por texto en la
+ * propia consulta SQL — solo por tipo de material (producto terminado) —,
+ * así que trae de una vez TODO ese universo (acotado por este tope) y
+ * busca la palabra por su VALOR en el código, ver `buscarMateriales`. Un
+ * tope más alto que `TOPE_MATERIALES` porque acá no hay filtro de texto
+ * que reduzca antes la cantidad de filas.
+ */
+const TOPE_PRODUCTOS_TERMINADOS = 3000;
+/** Resultados que se muestran en el desplegable de esa misma búsqueda. */
+const TOPE_RESULTADOS_PRODUCTO = 50;
+
 async function sapFetch<T>(path: string): Promise<T> {
   const url = `${config.sapMaestro.url}/rest/v1/${path}`;
   let resp;
@@ -174,10 +187,40 @@ function tipoMaterialLabel(data: Record<string, unknown> | null): string {
   return typeof tipo === "string" ? tipo : "";
 }
 
-/** "Texto de inspección": el único campo por el que se busca en "Buscar en el Maestro de Materiales (SAP)". */
-function textoInspeccionLabel(data: Record<string, unknown> | null): string {
-  const texto = data?.["Texto de inspección"];
-  return typeof texto === "string" ? texto : "";
+/** Sin tildes, sin espacios ni signos, en minúsculas — para comparar nombres de columna sin depender de su ortografía exacta. */
+function normalizarNombreColumna(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/gi, "")
+    .toLowerCase();
+}
+
+/**
+ * "Texto de inspección": el único campo por el que se busca en "Buscar en
+ * el Maestro de Materiales (SAP)".
+ *
+ * No se asume dónde vive exactamente (columna suelta como texto_material, o
+ * clave dentro de `data` como "Denominación tipo material") ni cómo está
+ * escrito su nombre (tildes, mayúsculas). Se recorren TODAS las columnas de
+ * la fila y las claves de `data`, comparando el nombre normalizado contra
+ * "texto de inspección" — la misma lección que dejó `etapaDeLaLista`: la
+ * ubicación exacta de un campo de SAP solo se puede confirmar probando
+ * contra producción, y adivinarla mal deja la búsqueda en silencio sin
+ * resultados.
+ */
+function textoInspeccion(fila: MaestroMaterialRow): string {
+  const buscado = "textodeinspeccion";
+  for (const [clave, valor] of Object.entries(fila)) {
+    if (clave === "data" || typeof valor !== "string") continue;
+    if (normalizarNombreColumna(clave) === buscado) return valor;
+  }
+  if (fila.data && typeof fila.data === "object") {
+    for (const [clave, valor] of Object.entries(fila.data)) {
+      if (typeof valor === "string" && normalizarNombreColumna(clave) === buscado) return valor;
+    }
+  }
+  return "";
 }
 
 /**
@@ -203,21 +246,6 @@ function condicionesPorPalabra(termino: string): string[] {
       const p = encodeURIComponent(palabra);
       return `or(material.ilike.*${p}*,texto_material.ilike.*${p}*)`;
     });
-}
-
-/**
- * Igual que `condicionesPorPalabra`, pero para "Buscar en el Maestro de
- * Materiales (SAP)": ahí se busca ÚNICAMENTE en "Texto de inspección" (una
- * clave dentro de la columna JSON `data`), ni por código ni por la
- * descripción general — a diferencia de "Recetas a conciliar", que sigue
- * usando `condicionesPorPalabra` sin tocar.
- */
-function condicionesPorPalabraTextoInspeccion(termino: string): string[] {
-  const columna = `data->>${encodeURIComponent("Texto de inspección")}`;
-  return termino
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((palabra) => `${columna}.ilike.*${encodeURIComponent(palabra)}*`);
 }
 
 /**
@@ -254,6 +282,12 @@ async function buscarCandidatosMaterial(
  * Producto Terminado (ZTER). El "Cód. Producto" no sale de acá: se escribe
  * a mano por separado. Es solo lectura contra un proyecto de Supabase
  * distinto al de esta app — nunca modifica esos datos.
+ *
+ * A diferencia del resto de búsquedas de este archivo, el filtro de texto
+ * NO va en la consulta SQL: se trae TODO el universo de productos
+ * terminados (filtrado solo por tipo de material, que sí se puede filtrar
+ * con confianza) y se busca la palabra por su VALOR en el código, con
+ * `textoInspeccion`. Es a propósito — ver esa función.
  */
 export async function buscarMateriales(req: Request, res: Response) {
   const termino = limpiarTermino(String(req.query.q ?? "").trim());
@@ -261,19 +295,31 @@ export async function buscarMateriales(req: Request, res: Response) {
     return res.json({ resultados: [], truncado: false });
   }
 
-  const filas = await buscarCandidatosMaterial(
-    termino,
-    CONDICION_PRODUCTO_TERMINADO,
-    condicionesPorPalabraTextoInspeccion(termino)
+  const candidatos = await sapFetch<MaestroMaterialRow[]>(
+    `mm_materiales?select=*&and=(${CONDICION_PRODUCTO_TERMINADO})` +
+      `&order=material.asc&limit=${TOPE_PRODUCTOS_TERMINADOS}`
   );
 
+  const palabras = termino
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const vistos = new Set<string>();
+  const coincidencias: { codigo: string; producto: string; tipo: string }[] = [];
+  for (const fila of candidatos) {
+    if (!fila.material || vistos.has(fila.material)) continue;
+    const producto = textoInspeccion(fila);
+    if (!producto) continue;
+    const enMinuscula = producto.toLowerCase();
+    if (!palabras.every((p) => enMinuscula.includes(p))) continue;
+    vistos.add(fila.material);
+    coincidencias.push({ codigo: fila.material, producto, tipo: tipoMaterialLabel(fila.data) });
+  }
+
   res.json({
-    resultados: filas.map((f) => ({
-      codigo: f.material,
-      producto: textoInspeccionLabel(f.data),
-      tipo: tipoMaterialLabel(f.data),
-    })),
-    truncado: filas.length >= TOPE_MATERIALES,
+    resultados: coincidencias.slice(0, TOPE_RESULTADOS_PRODUCTO),
+    truncado: candidatos.length >= TOPE_PRODUCTOS_TERMINADOS || coincidencias.length > TOPE_RESULTADOS_PRODUCTO,
   });
 }
 
