@@ -174,6 +174,12 @@ function tipoMaterialLabel(data: Record<string, unknown> | null): string {
   return typeof tipo === "string" ? tipo : "";
 }
 
+/** "Texto de inspección": el único campo por el que se busca en "Buscar en el Maestro de Materiales (SAP)". */
+function textoInspeccionLabel(data: Record<string, unknown> | null): string {
+  const texto = data?.["Texto de inspección"];
+  return typeof texto === "string" ? texto : "";
+}
+
 /**
  * ',' '(' ')' delimitan cláusulas en la sintaxis de filtros de PostgREST, y
  * '*' '%' son comodines de `ilike`: se quitan del término para que el texto
@@ -200,6 +206,21 @@ function condicionesPorPalabra(termino: string): string[] {
 }
 
 /**
+ * Igual que `condicionesPorPalabra`, pero para "Buscar en el Maestro de
+ * Materiales (SAP)": ahí se busca ÚNICAMENTE en "Texto de inspección" (una
+ * clave dentro de la columna JSON `data`), ni por código ni por la
+ * descripción general — a diferencia de "Recetas a conciliar", que sigue
+ * usando `condicionesPorPalabra` sin tocar.
+ */
+function condicionesPorPalabraTextoInspeccion(termino: string): string[] {
+  const columna = `data->>${encodeURIComponent("Texto de inspección")}`;
+  return termino
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((palabra) => `${columna}.ilike.*${encodeURIComponent(palabra)}*`);
+}
+
+/**
  * Busca en el Maestro de Materiales las filas que coinciden con el texto Y
  * cumplen la condición de código que se le pase.
  *
@@ -210,8 +231,12 @@ function condicionesPorPalabra(termino: string): string[] {
  * nada que mostrar. El efecto era que escribir MENOS texto daba MENOS
  * resultados — "TRAMEDIF" no encontraba nada y "TRAMEDIF COMPU" sí.
  */
-async function buscarCandidatosMaterial(termino: string, condicionCodigo: string): Promise<MaestroMaterialRow[]> {
-  const condiciones = [...condicionesPorPalabra(termino), condicionCodigo];
+async function buscarCandidatosMaterial(
+  termino: string,
+  condicionCodigo: string,
+  condicionesTexto: string[] = condicionesPorPalabra(termino)
+): Promise<MaestroMaterialRow[]> {
+  const condiciones = [...condicionesTexto, condicionCodigo];
   const filas = await sapFetch<MaestroMaterialRow[]>(
     `mm_materiales?select=material,texto_material,data` +
       `&and=(${condiciones.join(",")})` +
@@ -222,10 +247,13 @@ async function buscarCandidatosMaterial(termino: string, condicionCodigo: string
 }
 
 /**
- * Búsqueda en el Maestro de Materiales de SAP (herramienta "SAP MM & LM"),
- * para tomar el Código de Producto y el nombre del Producto directamente de
- * SAP en vez de escribirlos a mano. Es solo lectura contra un proyecto de
- * Supabase distinto al de esta app — nunca modifica esos datos.
+ * Búsqueda en el Maestro de Materiales de SAP (herramienta "SAP MM & LM")
+ * para el campo "Producto" del requerimiento — es la única forma de
+ * fijarlo, ya no hay una casilla de texto aparte. Busca únicamente en
+ * "Texto de inspección" (no por código) y solo entre materiales tipo
+ * Producto Terminado (ZTER). El "Cód. Producto" no sale de acá: se escribe
+ * a mano por separado. Es solo lectura contra un proyecto de Supabase
+ * distinto al de esta app — nunca modifica esos datos.
  */
 export async function buscarMateriales(req: Request, res: Response) {
   const termino = limpiarTermino(String(req.query.q ?? "").trim());
@@ -233,12 +261,16 @@ export async function buscarMateriales(req: Request, res: Response) {
     return res.json({ resultados: [], truncado: false });
   }
 
-  const filas = await buscarCandidatosMaterial(termino, CONDICION_PRODUCTO_TERMINADO);
+  const filas = await buscarCandidatosMaterial(
+    termino,
+    CONDICION_PRODUCTO_TERMINADO,
+    condicionesPorPalabraTextoInspeccion(termino)
+  );
 
   res.json({
     resultados: filas.map((f) => ({
       codigo: f.material,
-      producto: f.texto_material || "",
+      producto: textoInspeccionLabel(f.data),
       tipo: tipoMaterialLabel(f.data),
     })),
     truncado: filas.length >= TOPE_MATERIALES,
