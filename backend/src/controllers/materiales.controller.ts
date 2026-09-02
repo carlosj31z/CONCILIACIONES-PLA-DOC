@@ -119,10 +119,17 @@ export function alternativaPermitida(listaAlt: string | null): boolean {
  * que arregla el problema de fondo (ver `buscarCandidatosMaterial`).
  */
 /**
- * El campo "Producto" del requerimiento siempre es un producto terminado, o
- * sea el acondicionado: el producto ya empacado en su presentación final.
+ * El campo "Producto" del requerimiento siempre es un producto terminado
+ * (ZTER), o sea el acondicionado: el producto ya empacado en su
+ * presentación final.
+ *
+ * Antes se deducía por el prefijo del código ("6"). Se cambió al tipo de
+ * material real ("Denominación tipo material", que vive dentro de la
+ * columna JSON `data` — ver `tipoMaterialLabel`) porque el prefijo es una
+ * convención del código, no el dato que efectivamente clasifica el
+ * material en SAP.
  */
-const PREFIJOS_PRODUCTO_TERMINADO = ["6"];
+const CONDICION_PRODUCTO_TERMINADO = `data->>${encodeURIComponent("Denominación tipo material")}.ilike.*${encodeURIComponent("producto terminado")}*`;
 
 /**
  * Para "Recetas a conciliar" el código solo sirve para descartar la materia
@@ -226,10 +233,7 @@ export async function buscarMateriales(req: Request, res: Response) {
     return res.json({ resultados: [], truncado: false });
   }
 
-  const filas = await buscarCandidatosMaterial(
-    termino,
-    `or(${PREFIJOS_PRODUCTO_TERMINADO.map((p) => `material.like.${p}*`).join(",")})`
-  );
+  const filas = await buscarCandidatosMaterial(termino, CONDICION_PRODUCTO_TERMINADO);
 
   res.json({
     resultados: filas.map((f) => ({

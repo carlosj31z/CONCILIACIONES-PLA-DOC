@@ -16,23 +16,25 @@ interface RespuestaMateriales {
 
 interface MaterialLookupProps {
   onSelect: (material: MaterialResult) => void;
+  /** Texto a mostrar de entrada (p. ej. el Producto ya elegido de un registro existente). */
+  valorInicial?: string;
 }
 
 /**
- * Busca en el Maestro de Materiales de SAP (herramienta "SAP MM & LM") por
- * código o nombre de producto, para que Planeamiento pueda tomar el Cód.
- * Producto y el Producto directamente de SAP en vez de escribirlos a mano.
- * Es solo un atajo: al elegir un resultado se rellenan los campos de abajo,
- * que siguen siendo editables normalmente por si el código no existe en el
- * Maestro o hace falta ajustarlo.
+ * Busca en el Maestro de Materiales de SAP (herramienta "SAP MM & LM"),
+ * restringido a materiales tipo Producto Terminado (ZTER). Es la ÚNICA
+ * forma de fijar el campo "Producto" del requerimiento: no hay un campo de
+ * texto aparte para escribirlo a mano, así que el nombre que se guarda es
+ * siempre el que trae SAP para el material elegido. El Cód. Producto, en
+ * cambio, se escribe a mano por separado (ver NewRecord/RecordDetail):
+ * la búsqueda solo ayuda a encontrar el producto, no fija su código.
  *
- * El Maestro trae de todo (producto terminado, materia prima, envase,
- * acondicionado…), pero el campo "Producto" del requerimiento siempre es un
- * producto terminado — el backend filtra estricto, así que acá nunca
- * aparece otra cosa.
+ * Al elegir un resultado, la propia casilla de búsqueda pasa a mostrar el
+ * nombre elegido (en vez de vaciarse) para que quede a la vista qué
+ * producto quedó seleccionado.
  */
-export function MaterialLookup({ onSelect }: MaterialLookupProps) {
-  const [q, setQ] = useState("");
+export function MaterialLookup({ onSelect, valorInicial }: MaterialLookupProps) {
+  const [q, setQ] = useState(valorInicial ?? "");
   const [resultados, setResultados] = useState<MaterialResult[]>([]);
   const [truncado, setTruncado] = useState(false);
   const [buscando, setBuscando] = useState(false);
@@ -77,7 +79,7 @@ export function MaterialLookup({ onSelect }: MaterialLookupProps) {
 
   function elegir(r: MaterialResult) {
     onSelect(r);
-    setQ("");
+    setQ(r.producto);
     setResultados([]);
     setAbierto(false);
   }
@@ -90,7 +92,7 @@ export function MaterialLookup({ onSelect }: MaterialLookupProps) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={() => resultados.length > 0 && setAbierto(true)}
-          placeholder="Buscar código o nombre en el Maestro de Materiales de SAP…"
+          placeholder="Buscar producto terminado en el Maestro de Materiales de SAP…"
         />
       </div>
       <AnimatePresence>

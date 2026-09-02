@@ -337,19 +337,15 @@ export function NewRecord() {
           <div className="form-grid">
             <div className="form-field span-2">
               <label>Buscar en el Maestro de Materiales (SAP)</label>
-              <MaterialLookup
-                onSelect={(m) => {
-                  setCodigoProducto(m.codigo);
-                  setProducto(m.producto);
-                }}
-              />
-              <span className="hint">Opcional: elige un resultado para autocompletar Cód. Producto y Producto desde SAP.</span>
+              <MaterialLookup onSelect={(m) => setProducto(m.producto)} valorInicial={producto} />
+              <span className="hint">Elige el producto terminado desde SAP; es la única forma de fijar el Producto.</span>
             </div>
             <div className="form-field">
               <label htmlFor="codigoProducto">Cód. Producto</label>
               <div className="field-glow">
                 <input id="codigoProducto" type="text" value={codigoProducto} onChange={(e) => setCodigoProducto(e.target.value)} />
               </div>
+              <span className="hint">Se escribe a mano.</span>
             </div>
             <div className="form-field field-compact">
               <label htmlFor="planta">Planta</label>
@@ -358,12 +354,6 @@ export function NewRecord() {
                   <option value="1">1</option>
                   <option value="2">2</option>
                 </select>
-              </div>
-            </div>
-            <div className="form-field span-2">
-              <label htmlFor="producto">Producto</label>
-              <div className="field-glow">
-                <input id="producto" type="text" value={producto} onChange={(e) => setProducto(e.target.value)} required />
               </div>
             </div>
           </div>
@@ -460,7 +450,7 @@ export function NewRecord() {
         <FormMessage>{error}</FormMessage>
 
         <div className="form-actions">
-          <button className="btn btn-primary" type="submit" disabled={loading}>
+          <button className="btn btn-primary" type="submit" disabled={loading || !producto.trim()}>
             {loading && <Spinner />}
             {loading ? "Guardando…" : "Guardar y continuar"}
           </button>
